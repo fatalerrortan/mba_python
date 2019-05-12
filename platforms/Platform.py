@@ -28,9 +28,9 @@ class Platform(ABC):
         pass
 
     @abstractmethod
-    def get_current_bid(self):
+    def _get_max_bid(self):
         pass
 
     @abstractmethod
-    def get_current_ask(self):
+    def _get_min_ask(self):
         pass
