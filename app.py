@@ -1,5 +1,7 @@
 from platforms.Huobi import Huobi
+from Core import Core
 import asyncio
+import redis
 
 HUOBI_WS_URL = 'wss://api.huobi.pro/ws'
 HUOBI_TOPIC_TRADE_DETAIL = '{ \
@@ -10,10 +12,11 @@ HUOBI_TOPIC_MARKET_DEPTH = '{ \
         }'
 
 if __name__ == '__main__':
-
-    Huobi_platform = Huobi(ws_url=HUOBI_WS_URL)    
-    huobi_trade_record = Huobi_platform.fetch_subscription(sub=HUOBI_TOPIC_MARKET_DEPTH)
-    # for item in huobi_trade_record:
-    #     print(item)
-#     while True:
-#         print(next(huobi_trade_record))
+        Redis = redis.Redis(host='localhost', port=6379, db=0)
+        Huobi_platform = Huobi(HUOBI_WS_URL, Redis)    
+        Core = Core(Redis)
+        asyncio.get_event_loop().run_until_complete(asyncio.gather(
+                Huobi_platform.fetch_subscription(sub=HUOBI_TOPIC_MARKET_DEPTH), 
+                Core.bricks_checking()
+                ))
+   
