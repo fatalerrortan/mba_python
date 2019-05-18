@@ -5,6 +5,7 @@ import gzip
 import json
 import tracemalloc
 import datetime
+import traceback
 
 tracemalloc.start()
 
@@ -24,7 +25,7 @@ class Huobi(Platform):
                 try:
                     result = gzip.decompress(raw_respons).decode('utf-8')
                 except Exception as e:
-                    print(__file__+f' line 25: {e}')                        
+                    print(traceback.format_exc())                             
                 if result[2:6] == 'ping':
                     ping = str(json.loads(result).get('ping'))
                     pong = '{"pong":'+ping+'}'
@@ -32,14 +33,18 @@ class Huobi(Platform):
                 else:
                     try:
                         result = json.loads(result).get('tick')
-                        result['ts'] = datetime.datetime.fromtimestamp(int(result['ts']/1000)).strftime('%Y-%m-%d %H:%M:%S')
-                        result['bids'] = self._get_max_bid(result['bids'])
-                        result['asks'] = self._get_min_ask(result['asks'])
-                        self.redis.set('huobi', str(result))                      
+                        # result['ts'] = datetime.datetime.fromtimestamp(int(result['ts']/1000)).strftime('%Y-%m-%d %H:%M:%S')
+                        max_bid, bid_amount = await self._get_max_bid(result['bids'])
+                        if max_bid == None or bid_amount == None: continue
+                        min_ask, ask_amount = await self._get_min_ask(result['asks'])
+                        if min_ask == None or ask_amount == None: continue
+                        # json_str = '{"max_bid": {}, "bid_amount": {}, "min_ask": {}, "ask_amount": {}}'.format(max_bid, bid_amount, min_ask, ask_amount)
+                        json_str = '{"market": "huobi","max_bid": '+str(max_bid)+', "bid_amount": '+str(bid_amount)+',"min_ask": '+str(min_ask)+', "ask_amount": '+str(ask_amount)+'}'                        
+                        self.redis.set('huobi', json_str)                      
                     except Exception as e:
-                        print(__file__+f' line 38: {e}')     
+                        print(traceback.format_exc())     
 
-    def _get_max_bid(self, bids: list) -> tuple:
+    async def _get_max_bid(self, bids: list):
         # get the highst bid price of the given bids cluster
         max_bid = 0
         bid_amount = 0
@@ -48,9 +53,9 @@ class Huobi(Platform):
             if current_bid > max_bid:
                 max_bid = current_bid
                 bid_amount = float(amount)
-        return (max_bid, bid_amount)
+        return max_bid, bid_amount
 
-    def _get_min_ask(self, asks: list) -> tuple:
+    async def _get_min_ask(self, asks: list):
         # get the lowst ask price of the given asks cluster
         min_ask = 0
         ask_amount = 0
@@ -59,4 +64,4 @@ class Huobi(Platform):
             if (current_ask < min_ask) or (min_ask == 0):
                 min_ask = current_ask
                 ask_amount = float(amount)
-        return (min_ask, ask_amount)
+        return min_ask, ask_amount
