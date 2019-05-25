@@ -19,6 +19,7 @@ class Binance(Platform):
         # subscribe  binance market depth to get last bids and asks 
         # response from huobi websocket is a json with cluster of the last bids and asks  
         async with websockets.connect(self._ws_url) as ws: 
+
             while True:
                 raw_respons = await ws.recv()
                 try:

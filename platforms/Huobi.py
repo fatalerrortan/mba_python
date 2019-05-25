@@ -33,6 +33,7 @@ class Huobi(Platform):
                 else:
                     try:
                         result = json.loads(result).get('tick')
+                        if not result: continue
                         # result['ts'] = datetime.datetime.fromtimestamp(int(result['ts']/1000)).strftime('%Y-%m-%d %H:%M:%S')
                         max_bid, bid_amount = await self._get_max_bid(result['bids'])
                         if max_bid == None or bid_amount == None: continue
