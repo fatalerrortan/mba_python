@@ -14,8 +14,6 @@ CURRENCY = {
         config['MODE']['currency_code']: 'ETH / USDT' 
 }
 
-
-
 HUOBI_WS_URL = config['HUOBI']['ws_url']
 HUOBI_TOPIC_MARKET_DEPTH = config['HUOBI']['stream']
 HUOBI_CURRENCY_AMOUNT = config['HUOBI']['simulated_currency_amount']
