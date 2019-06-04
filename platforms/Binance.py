@@ -21,11 +21,18 @@ class Binance(Platform):
         async with websockets.connect(self._ws_url) as ws: 
 
             while True:
-                raw_respons = await ws.recv()
+
+                if not ws.open:
+                    print('............... reconnecting to BINANCE websocket ...............')
+                    ws = await websockets.connect(self._ws_url)
+                    await ws.send()
+
                 try:
+                    raw_respons = await ws.recv()
                     result = json.loads(raw_respons)                                     
                 except Exception as e:
                     print(traceback.format_exc())
+                    continue  
                 try:
                     max_bid, bid_amount = await self._get_max_bid(result['bids'])
                     if max_bid == None or bid_amount == None: continue

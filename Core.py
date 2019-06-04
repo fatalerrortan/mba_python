@@ -21,10 +21,17 @@ HUOBI_USDT_AMOUNT = float(config['HUOBI']['simulated_usdt_amount'])
 BINANCE_USDT_AMOUNT = float(config['BINANCE']['simulated_usdt_amount'])
 INIT_TOTAL_USDT_AMOUNT = HUOBI_USDT_AMOUNT + BINANCE_USDT_AMOUNT
 
+logger = logging.getLogger('core_logger')
+logger.setLevel(logging.DEBUG)
+fh = logging.FileHandler('logs/core.log')
+fh.setLevel(logging.DEBUG)
+logger.addHandler(fh)
+
 class Core():
-    def __init__(self, redis: object, currency: tuple):
+    def __init__(self, redis: object, currency: str, freq_analyser: object):
         self._redis = redis
-        self.currency = currency # param0: currency code; param1: curreny / usdt
+        self.currency = (currency, '{} / usdt'.format(currency).upper())# param0: currency code; param1: curreny / usdt
+        self.freq_analyser = freq_analyser
 
     async def bricks_checking(self):
         # compare the records of selected platforms 
@@ -60,16 +67,20 @@ class Core():
         b_min_ask, b_ask_amount = float(b['min_ask']), float(b['ask_amount'])
 
         if a_max_bid > b_min_ask:
+
             available_trade_amount = min(a_bid_amount, b_ask_amount)
             if available_trade_amount > MAX_TRADE_AMOUNT:
                 available_trade_amount = MAX_TRADE_AMOUNT
 
-            self._print_on_terminal(a, b, available_trade_amount, render_type='trade_event')
+            self._print_on_terminal(a, b, available_trade_amount, render_type='trade_event')  
 
-            available_trade_amount = min(a_bid_amount, b_ask_amount)
-            if available_trade_amount > MAX_TRADE_AMOUNT:
-                available_trade_amount = MAX_TRADE_AMOUNT          
-
+            margin = round(a_max_bid - b_min_ask, 3)
+            if not margin == 0:
+                if not margin in self.freq_analyser.freq_margin_list:
+                    self.freq_analyser.set_freq(margin, new_item=True)
+                else:
+                    self.freq_analyser.set_freq(margin)
+                
             a_pre_result = trade_handler[a_market]('sell', a_max_bid, available_trade_amount, advance_mode=True)
             b_pre_result = trade_handler[b_market]('buy', b_min_ask, available_trade_amount, advance_mode=True)
 
@@ -98,11 +109,19 @@ class Core():
 
 
         if b_max_bid > a_min_ask:
+
             available_trade_amount = min(b_bid_amount, a_ask_amount)
             if available_trade_amount > MAX_TRADE_AMOUNT:
                 available_trade_amount = MAX_TRADE_AMOUNT
 
             self._print_on_terminal(b, a, available_trade_amount, render_type='trade_event')
+
+            margin = round(b_max_bid - a_min_ask, 3)
+            if not margin == 0:
+                if not margin in self.freq_analyser.freq_margin_list:
+                    self.freq_analyser.set_freq(margin, new_item=True)
+                else:
+                    self.freq_analyser.set_freq(margin)
 
             b_pre_result = trade_handler[b_market]('sell', b_max_bid, available_trade_amount, advance_mode=True)
             a_pre_result = trade_handler[a_market]('buy', a_min_ask, available_trade_amount, advance_mode=True)
@@ -194,12 +213,6 @@ class Core():
             exit('to do production')        
 
     def _print_on_terminal(self, *data, render_type='normal'):
-        logger = logging.getLogger('core_logger')
-        logger.setLevel(logging.DEBUG)
-        fh = logging.FileHandler('logs/core.log')
-        fh.setLevel(logging.DEBUG)
-        logger.addHandler(fh)
-
         try:
             a_record = data[0] # in render_type='trade_operation' a_record changes its semantic to a trade signal 'sold' | 'purchsed'
             b_record = data[1] # in render_type='trade_operation' a_record changes its semantic to a trade information cluster
@@ -234,7 +247,7 @@ class Core():
 
         if render_type == 'status':
             table = PrettyTable()
-            table.field_names = ["Platforms", self.currency[0], "USDT"]
+            table.field_names = ["Platforms", self.currency[0].upper(), "USDT"]
             if self._redis.get('exec_mode') == b'simulation':
                 table.add_row(["HUOBI", round( float(self._redis.get('huobi_currency_amount')), 20), round( float(self._redis.get('huobi_usdt_amount')) , 20)])
                 table.add_row(["BINANCE", round(float(self._redis.get('binance_currency_amount')), 20), round(float(self._redis.get('binance_usdt_amount')), 20)])

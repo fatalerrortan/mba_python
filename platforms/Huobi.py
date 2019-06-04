@@ -14,18 +14,27 @@ class Huobi(Platform):
     def __init__(self, ws_url: str, redis: object):
         self._ws_url = ws_url
         self.redis = redis
+        self.sub = None
 
     async def fetch_subscription(self, sub: str):
         # subscribe  huobi market depth to get last bids and asks 
         # response from huobi websocket is a json with cluster of the last bids and asks  
+        self.sub = sub
         async with websockets.connect(self._ws_url) as ws: 
             await ws.send(sub)  
             while True:
-                raw_respons = await ws.recv()
+
+                if not ws.open:
+                    print('............... reconnecting to HUOBI websocket ...............')
+                    ws = await websockets.connect(self._ws_url)
+                    await ws.send(sub)
+                    
                 try:
+                    raw_respons = await ws.recv()
                     result = gzip.decompress(raw_respons).decode('utf-8')
                 except Exception as e:
-                    print(traceback.format_exc())                             
+                    print(traceback.format_exc())
+                    continue                             
                 if result[2:6] == 'ping':
                     ping = str(json.loads(result).get('ping'))
                     pong = '{"pong":'+ping+'}'
