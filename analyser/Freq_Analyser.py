@@ -26,11 +26,11 @@ class Freq_Analyser:
             csv_reader = csv.DictReader(csv_file)
             line_count = 0
             for row in csv_reader:
-                self.freq_dict[row['margin']] = row['freq']
-                self.freq_margin_list.append(row['margin'])
+                self.freq_dict[float(row['margin'])] = float(row['freq'])
+                self.freq_margin_list.append(float(row['margin']))
                 
-    def set_freq(self, margin:float, new_item=None):
-        if new_item:
+    def set_freq(self, margin:float):
+        if not margin in self.freq_margin_list:
             self.freq_margin_list.append(margin)
             self.freq_dict[margin] = 1 
         else:
