@@ -53,7 +53,7 @@ if __name__ == '__main__':
         signal.signal(signal.SIGINT, freq_analyser.write_to_csv)
 
         asyncio.get_event_loop().run_until_complete(asyncio.gather(
-                huobi_coroutine.fetch_subscription(sub=HUOBI_TOPIC_MARKET_DEPTH), 
+                huobi_coroutine.fetch_subscription(sub=HUOBI_TOPIC_MARKET_DEPTH),
                 binance_coroutine.fetch_subscription(),
                 core_coroutine.bricks_checking()
                 ))

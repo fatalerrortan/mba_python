@@ -32,7 +32,8 @@ class Huobi(Platform):
                 try:
                     raw_respons = await ws.recv()
                     result = gzip.decompress(raw_respons).decode('utf-8')
-                except Exception as e:
+                    
+                except Exception:
                     print(traceback.format_exc())
                     continue                             
                 if result[2:6] == 'ping':
@@ -51,7 +52,7 @@ class Huobi(Platform):
                         # json_str = '{"max_bid": {}, "bid_amount": {}, "min_ask": {}, "ask_amount": {}}'.format(max_bid, bid_amount, min_ask, ask_amount)
                         json_str = '{"market": "huobi","max_bid": '+str(max_bid)+', "bid_amount": '+str(bid_amount)+',"min_ask": '+str(min_ask)+', "ask_amount": '+str(ask_amount)+'}'                        
                         self.redis.set('huobi', json_str)                      
-                    except Exception as e:
+                    except Exception:
                         print(traceback.format_exc())     
 
     async def _get_max_bid(self, bids: list):
