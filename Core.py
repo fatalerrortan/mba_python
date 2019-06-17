@@ -93,7 +93,7 @@ class Core():
                     b_pre_result = trade_handler[b_market]('buy', b_min_ask, available_trade_amount, advance_mode=True)
 
                     if not a_pre_result == None and not b_pre_result == None:
-                        try:
+                        try:  
                             a_sell_result = trade_handler[a_market]('sell', a_max_bid, available_trade_amount)
                             if a_sell_result:
                                 self._print_on_terminal('sell', a, available_trade_amount, render_type='trade_operation')
@@ -261,7 +261,7 @@ class Core():
         if render_type == 'continue':
 
             platform = data[0]
-            if a_record:
+            if platform:
                 msg = '---> {} platform cannot confirm this trade, then breaking this transaction and waiting for the next <---'.format(platform)
             else:
                 msg = '--->  this trade cannot be handled in terms of account balance, waiting for the next <---'
