@@ -10,12 +10,9 @@ import logging
 config = configparser.ConfigParser()
 config.read('./config.ini')
 
-MAX_TRADE_PERCENTAGE = float(config['RULE']['max_trade_percentage'])
-
 HUOBI_CURRENCY_AMOUNT = float(config['HUOBI']['simulated_currency_amount'])
 BINANCE_CURRENCY_AMOUNT = float(config['BINANCE']['simulated_currency_amount'])
 INIT_TOTAL_CURRENCY_AMOUNT = HUOBI_CURRENCY_AMOUNT + BINANCE_CURRENCY_AMOUNT
-# MAX_TRADE_AMOUNT = min(HUOBI_CURRENCY_AMOUNT, BINANCE_CURRENCY_AMOUNT) * MAX_TRADE_PERCENTAGE
 
 HUOBI_USDT_AMOUNT = float(config['HUOBI']['simulated_usdt_amount'])
 BINANCE_USDT_AMOUNT = float(config['BINANCE']['simulated_usdt_amount'])
@@ -111,8 +108,8 @@ class Core():
                             self._print_on_terminal(None, None, None, render_type='status')                               
                         except Exception:
                             print(traceback.format_exc())
-                else: 
-                    self._print_on_terminal(None, None, None, render_type='continue')       
+                    else:
+                        self._print_on_terminal(None, None, None, render_type='continue')                      
 
     def _get_trade_rate(self, market):
         return 0
@@ -184,7 +181,7 @@ class Core():
         rules = self.trade_rule_json
         for label, rule in rules.items():
             if float(rule['from']) <= margin < float(rule['to']):
-                return (label, rule['rate'], float(rule['rate']) * INIT_TOTAL_USDT_AMOUNT)
+                return (label, rule['rate'], float(rule['rate']) * INIT_TOTAL_CURRENCY_AMOUNT)
         return (None, None, None)       
 
     def _print_on_terminal(self, *data, render_type='normal'):

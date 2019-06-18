@@ -40,9 +40,11 @@ class Freq_Analyser:
         msg = '---> converting collected data to csv, then the program will be terminated ... <---'
         print(C(msg, fore=41))
 
+        sorted_freq_dict = dict(sorted(self.freq_dict.items()))
+
         with open(self.csv_file_path, 'w') as csv_file:
             csv_file.write('{},{}\r\n'.format('margin', 'freq'))
-            for margin, freq in self.freq_dict.items():
+            for margin, freq in sorted_freq_dict.items():
                 csv_file.write('{},{}\r\n'.format(margin, freq))
 
         exit(C('bye bye 再见 ciao wiedersehen :)', fore=41))
