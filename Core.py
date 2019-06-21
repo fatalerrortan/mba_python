@@ -31,7 +31,7 @@ class Core():
         self._redis = redis
         self.currency = (currency, '{} / usdt'.format(currency).upper())# param0: currency code; param1: curreny / usdt
         self.freq_analyser = freq_analyser
-        self.trade_rule_json = self._get_trade_rules()
+        self.trade_rule_json = self._get_trade_rules(currency)
 
     async def bricks_checking(self):
         # compare the records of selected platforms 
@@ -114,9 +114,9 @@ class Core():
     def _get_trade_rate(self, market):
         return 0
     
-    def _get_trade_rules(self):
+    def _get_trade_rules(self, currency):
         with open('rules/{}'.format(TRADE_RULE_FILE)) as trade_rule_file:
-            trade_rule_json = json.load(trade_rule_file)    
+            trade_rule_json = json.load(trade_rule_file)[currency]    
             return trade_rule_json    
 
     def _huobi_trade_handler(self, operation: str, price: float, amount: float, advance_mode=None):
