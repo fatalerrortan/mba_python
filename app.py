@@ -9,13 +9,16 @@ from analyser.Freq_Analyser import Freq_Analyser
 import signal
 
 config = configparser.ConfigParser()
-config.read('./config.ini')
+config.read('./config_dev.ini')
 
 EXEC_MODE = config['MODE']['mode']
 
 CURRENCY_PAIR = config['MODE']['currency_code'] + 'usdt'
 
 HUOBI_WS_URL = config['HUOBI']['ws_url']
+HUOBI_API_HOST = config['HUOBI']['api_host']
+HUOBI_API_KEY = config['HUOBI']['access_key']
+HUOBI_SECRET_KEY = config['HUOBI']['secret_key']
 HUOBI_TOPIC_MARKET_DEPTH = config['HUOBI']['stream'].replace('$currency_pair', CURRENCY_PAIR)
 HUOBI_CURRENCY_AMOUNT = config['HUOBI']['simulated_currency_amount']
 HUOBI_USDT_AMOUNT = config['HUOBI']['simulated_usdt_amount']
@@ -40,7 +43,7 @@ if __name__ == '__main__':
                 redis.set('binance_usdt_amount', BINANCE_USDT_AMOUNT)          
 
         binance_coroutine = Binance(BINANCE_WS_URL+BINANCE_STREAM, redis)
-        huobi_coroutine = Huobi(HUOBI_WS_URL, redis)    
+        huobi_coroutine = Huobi(HUOBI_WS_URL, HUOBI_API_HOST, redis, HUOBI_API_KEY, HUOBI_SECRET_KEY)    
         freq_analyser = Freq_Analyser(config['MODE']['currency_code'])
         core_coroutine = Core(redis, config['MODE']['currency_code'], freq_analyser)
 
@@ -52,9 +55,14 @@ if __name__ == '__main__':
 
         signal.signal(signal.SIGINT, freq_analyser.write_to_csv)
 
-        asyncio.get_event_loop().run_until_complete(asyncio.gather(
-                huobi_coroutine.fetch_subscription(sub=HUOBI_TOPIC_MARKET_DEPTH),
-                binance_coroutine.fetch_subscription(),
-                core_coroutine.bricks_checking()
-                ))
+        # asyncio.get_event_loop().run_until_complete(asyncio.gather(
+        #         huobi_coroutine.fetch_subscription(sub=HUOBI_TOPIC_MARKET_DEPTH),
+        #         binance_coroutine.fetch_subscription(),
+        #         core_coroutine.bricks_checking()
+        #         ))
+
+        test = huobi_coroutine.get_account_info()
+        
+        
    
+        

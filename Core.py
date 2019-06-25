@@ -42,6 +42,7 @@ class Core():
                 binance_record = json.loads(self._redis.get('binance'))
             except Exception:
                 print(traceback.format_exc())
+                continue
             self._print_on_terminal(huobi_record, binance_record, None, render_type='normal')
             try:
                 self._is_profitable(huobi_record, binance_record)

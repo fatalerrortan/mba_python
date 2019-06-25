@@ -6,15 +6,24 @@ import json
 import tracemalloc
 import datetime
 import traceback
+import urllib.parse
+import requests
+from datetime import datetime
+import hashlib
+import hmac
+import base64
 
 tracemalloc.start()
 
 class Huobi(Platform):
-
-    def __init__(self, ws_url: str, redis: object):
+ 
+    def __init__(self, ws_url: str, api_host: str, redis: object, api_key: str, secret_key: str):
         self._ws_url = ws_url
         self.redis = redis
         self.sub = None
+        self.api_host = api_host
+        self._api_key = api_key
+        self._secret_key = bytes(secret_key, "utf-8")
 
     async def fetch_subscription(self, sub: str):
         # subscribe  huobi market depth to get last bids and asks 
@@ -76,3 +85,37 @@ class Huobi(Platform):
                 min_ask = current_ask
                 ask_amount = float(amount)
         return min_ask, ask_amount
+
+    def get_account_info(self):
+        request_url = self._prepare_request_data("GET", "/v1/account/accounts")
+        result = requests.get(request_url).json()
+        return result
+    
+    def _prepare_request_data(self, post_method: str, uri: str, **params):
+        request_params_dict = {
+            "AccessKeyId": self._api_key,
+            "SignatureMethod": "HmacSHA256",
+            "SignatureVersion": 2,
+            "Timestamp": urllib.parse.quote(datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S'))
+        }
+
+        if params:
+            request_params_dict = {**request_params_dict, **params}
+
+        request_params = ""
+        for key in sorted(request_params_dict.keys()):
+            request_params += "{}={}&".format(key,request_params_dict[key])
+
+        request_message = "{}\n{}\n{}\n{}".format(post_method, self.api_host, uri, request_params)[:-1]
+        signature = self._get_hmacSHA256_sigature(request_message)
+        request_params += "Signature={}".format(signature)
+
+        request_url = "https://{}{}?{}".format(self.api_host, uri, request_params)
+
+        return request_url
+
+    def _get_hmacSHA256_sigature(self, request_message: str):
+        hash = hmac.new(self._secret_key, bytes(request_message, "utf-8"), hashlib.sha256).digest()
+        base64_hash = base64.b64encode(hash)
+
+        return base64_hash.decode("utf-8")
