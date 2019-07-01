@@ -61,7 +61,14 @@ if __name__ == '__main__':
         #         core_coroutine.bricks_checking()
         #         ))
 
-        test = huobi_coroutine.get_account_info()
+        # test = huobi_coroutine.get_account_balance("eos", "usdt")
+        test1 = huobi_coroutine.place_order(0.1, 6.11, "eosusdt", "sell-ioc")
+        print(test1)
+        test2 = huobi_coroutine.get_account_balance("eos", "usdt")
+        print(test2)
+
+
+        
         
         
    

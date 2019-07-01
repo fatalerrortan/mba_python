@@ -8,7 +8,7 @@ import configparser
 import logging
 
 config = configparser.ConfigParser()
-config.read('./config.ini')
+config.read('./config_dev.ini')
 
 HUOBI_CURRENCY_AMOUNT = float(config['HUOBI']['simulated_currency_amount'])
 BINANCE_CURRENCY_AMOUNT = float(config['BINANCE']['simulated_currency_amount'])

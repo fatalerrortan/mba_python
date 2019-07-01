@@ -12,6 +12,7 @@ from datetime import datetime
 import hashlib
 import hmac
 import base64
+import time
 
 tracemalloc.start()
 
@@ -24,6 +25,7 @@ class Huobi(Platform):
         self.api_host = api_host
         self._api_key = api_key
         self._secret_key = bytes(secret_key, "utf-8")
+        self._account_id = None
 
     async def fetch_subscription(self, sub: str):
         # subscribe  huobi market depth to get last bids and asks 
@@ -68,29 +70,97 @@ class Huobi(Platform):
         # get the highst bid price of the given bids cluster
         max_bid = 0
         bid_amount = 0
+
         for bid, amount in bids:
             current_bid = float(bid)
             if current_bid > max_bid:
                 max_bid = current_bid
                 bid_amount = float(amount)
+        
         return max_bid, bid_amount
 
     async def _get_min_ask(self, asks: list):
         # get the lowst ask price of the given asks cluster
         min_ask = 0
         ask_amount = 0
+
         for ask, amount in asks:
             current_ask = float(ask)
             if (current_ask < min_ask) or (min_ask == 0):
                 min_ask = current_ask
                 ask_amount = float(amount)
+        
         return min_ask, ask_amount
 
     def get_account_info(self):
-        request_url = self._prepare_request_data("GET", "/v1/account/accounts")
-        result = requests.get(request_url).json()
-        return result
+        
+        while True:
+            request_url = self._prepare_request_data("GET", "/v1/account/accounts")
+            result = requests.get(request_url).json()
+            if not result["status"] == "error":
+                self._account_id = result['data'][0]["id"]
+                return result
+
+    def get_account_balance(self, *currency):
+
+        if not self._account_id:
+            self.get_account_info()
+
+        currency_list = list(currency)
+        result = {}
+
+        while True:
+            request_url = self._prepare_request_data("GET", "/v1/account/accounts/{}/balance".format(self._account_id))
+            raw_result = requests.get(request_url).json()
+            if not raw_result["status"] == "error":
+                balances = raw_result["data"]["list"]
+                for balance in balances:
+                    if len(result) == 2: break
+                    if (balance["currency"] in currency_list) and (balance["type"] == "trade"):
+                        result[balance["currency"]] = balance
+                    # print(balance)
+      
+                return result
+
+    def place_order(self, amount: float, price: float, symbol: str, trade_type: str):
+        """
+            trade_type: using buy as example for explanation
+                1. buy(sell)-market: A market order is an order to trade a stock at the current market price.
+                    - in this case the argument "price" is optional
+                
+                2. buy(sell)-limit: A buy limit order is an order to purchase an asset at or below a specified price
+
+                3. buy(sell)-ioc: An Immediate Or Cancel (IOC) order requires all or part of the order to be executed immediately, 
+                and any unfilled parts of the order are canceled.
+
+                4. buy(sell)-limit-maker: an order will be placed only when the offering bid price is lower than current lowest ask price.
+        """
+        if not self._account_id:
+            self.get_account_info()
+
+        headers = {
+            "Accept": "application/json",
+            'Content-Type': 'application/json'
+        }
+
+        post_data = {
+            "account-id": str(self._account_id),
+            "amount": str(amount),
+            "price": str(price),
+            "source": "api",
+            "symbol": str(symbol),
+            "type": str(trade_type)
+        }
+
+        post_data = json.dumps(post_data)
     
+        while True:
+            request_url = self._prepare_request_data("POST", "/v1/order/orders/place")
+            result = requests.post(request_url, post_data, headers=headers).json()
+            if result["status"] == "error" and result["err-code"] == "api-signature-not-valid":
+                continue
+            return result
+            
     def _prepare_request_data(self, post_method: str, uri: str, **params):
         request_params_dict = {
             "AccessKeyId": self._api_key,
