@@ -140,7 +140,7 @@ class Huobi(Platform):
 
         headers = {
             "Accept": "application/json",
-            'Content-Type': 'application/json'
+            "Content-Type": "application/json"
         }
 
         post_data = {

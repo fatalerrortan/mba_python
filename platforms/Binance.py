@@ -4,16 +4,23 @@ import websockets
 import gzip
 import json
 import tracemalloc
-import datetime
+import time
 import traceback
+import requests
+import hashlib
+import hmac
+import base64
 
 tracemalloc.start()
 
 class Binance(Platform):
 
-    def __init__(self, ws_url: str, redis: object):
+    def __init__(self, ws_url: str, api_host: str, redis: object, api_key: str, secret_key: str):
         self._ws_url = ws_url
         self.redis = redis
+        self.api_host = api_host
+        self._api_key = api_key
+        self._secret_key = bytes(secret_key, "utf-8")
 
     async def fetch_subscription(self):
         # subscribe  binance market depth to get last bids and asks 
@@ -65,3 +72,38 @@ class Binance(Platform):
                 min_ask = current_ask
                 ask_amount = float(amount)
         return min_ask, ask_amount
+
+    def get_account_balance(self, *currency):
+        headers = {
+            "Accept": "*/*",
+            'X-MBX-APIKEY': self._api_key
+        }
+        request_url = self._prepare_request_data("/api/v3/account")
+        try:
+            result = requests.get(request_url, headers=headers).json()
+        except Exception:
+            print(Exception)
+            return None
+        print(result)
+
+    def _prepare_request_data(self, uri: str, **params):
+        request_params_dict = {
+            "timestamp": int(time.time()*1000)
+        } 
+
+        if params:
+            request_params_dict = {**request_params_dict, **params}      
+        
+        request_params = ""
+        for key in sorted(request_params_dict.keys()):
+            request_params += "{}={}&".format(key,request_params_dict[key])
+
+        signature = self._get_hmacSHA256_sigature(request_params[:-1])       
+        request_url = "{}{}?{}signature={}".format(self.api_host, uri, request_params, signature)
+
+        return request_url
+
+    def _get_hmacSHA256_sigature(self, request_params: str):
+        hash = hmac.new(self._secret_key, bytes(request_params, "utf-8"), hashlib.sha256).hexdigest()
+
+        return hash
