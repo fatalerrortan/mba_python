@@ -10,17 +10,24 @@ import requests
 import hashlib
 import hmac
 import base64
+import logging 
 
 tracemalloc.start()
 
 class Binance(Platform):
 
     def __init__(self, ws_url: str, api_host: str, redis: object, api_key: str, secret_key: str):
+
+        self.logger = logging.getLogger("root.{}".format(__name__))
         self._ws_url = ws_url
         self.redis = redis
         self.api_host = api_host
         self._api_key = api_key
         self._secret_key = bytes(secret_key, "utf-8")
+        self._headers = {
+            "Accept": "*/*",
+            'X-MBX-APIKEY': self._api_key
+        }
 
     async def fetch_subscription(self):
         # subscribe  binance market depth to get last bids and asks 
@@ -30,16 +37,17 @@ class Binance(Platform):
             while True:
 
                 if not ws.open:
-                    print('............... reconnecting to BINANCE websocket ...............')
+                    self.logger.warning("............... reconnecting to BINANCE websocket ...............")
                     ws = await websockets.connect(self._ws_url)
                     await ws.send()
 
                 try:
                     raw_respons = await ws.recv()
                     result = json.loads(raw_respons)                                     
-                except Exception as e:
-                    print(traceback.format_exc())
+                except Exception:
+                    self.logger.warning(Exception)
                     continue  
+
                 try:
                     max_bid, bid_amount = await self._get_max_bid(result['bids'])
                     if max_bid == None or bid_amount == None: continue
@@ -48,8 +56,9 @@ class Binance(Platform):
                     # json_str = '{"max_bid": {}, "bid_amount": {}, "min_ask": {},ç "ask_amount": {}}'.format(max_bid, bid_amount, min_ask, ask_amount)
                     json_str = '{"market": "binance","max_bid": '+str(max_bid)+', "bid_amount": '+str(bid_amount)+',"min_ask": '+str(min_ask)+', "ask_amount": '+str(ask_amount)+'}'
                     self.redis.set('binance', json_str) 
-                except Exception as e:
-                    print(traceback.format_exc())                            
+                except Exception:
+                    self.logger.warning(Exception)
+                    continue                            
 
     async def _get_max_bid(self, bids: list):
         # get the highst bid price of the given bids cluster
@@ -74,19 +83,59 @@ class Binance(Platform):
         return min_ask, ask_amount
 
     def get_account_balance(self, *currency):
-        headers = {
-            "Accept": "*/*",
-            'X-MBX-APIKEY': self._api_key
-        }
-        request_url = self._prepare_request_data("/api/v3/account")
-        try:
-            result = requests.get(request_url, headers=headers).json()
-        except Exception:
-            print(Exception)
-            return None
-        print(result)
 
-    def _prepare_request_data(self, uri: str, **params):
+        request_url = self._prepare_request_data("/api/v3/account", {})
+        
+        try:
+            balances = requests.get(request_url, headers=self._headers).json()["balances"]
+        except Exception:
+            self.logger.error(Exception)
+            return None
+        
+        result = {}
+        for balance in balances:
+            if len(result) == 2: break
+            if balance["asset"].lower() in currency:
+                result[balance["asset"].lower()] = balance
+
+        return result
+        
+    def place_order(self, symbol:str, side: str, type: str, quantity: float, price: float):
+        """
+        symbol: currency name e.g. EOSUSDT
+        side: trade direction e.g SELL
+        type: transaction type
+            - LIMIT: trade with limited price
+            - MARKET: trade with current market price
+            - LIMIT_MAKER: ???
+            - STOP_LOSS: trade with current market price if lower than a stop price 
+            - STOP_LOSS_LIMIT: trade with a specified price if lower than a stop price 
+            - TAKE_PROFIT: trade with current market price if higher than a stop price 
+            - TAKE_PROFIT_LIMIT: trade with specified price if higher than a stop price
+        timeInForce：IOC - Immediate or Cancel 
+        """
+        params = {
+           "symbol": symbol.upper(),
+           "side": side.upper(),
+           "type": type.upper(),
+           "timeInForce": "IOC",
+           "quantity": quantity,
+           "price": price,
+           # "stopPrice": stop_price,
+           "newOrderRespType": "RESULT"
+        }
+
+        request_url = self._prepare_request_data("/api/v3/order", params)
+
+        try:
+            balances = requests.get(request_url, headers=self._headers).json()
+        except Exception:
+            self.logger.error(Exception)
+            return None
+        
+        return balances
+
+    def _prepare_request_data(self, uri: str, params: dict):
         request_params_dict = {
             "timestamp": int(time.time()*1000)
         } 

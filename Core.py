@@ -20,14 +20,10 @@ INIT_TOTAL_USDT_AMOUNT = HUOBI_USDT_AMOUNT + BINANCE_USDT_AMOUNT
 
 TRADE_RULE_FILE = config['RULE']['rule_file']
 
-logger = logging.getLogger('core_logger')
-logger.setLevel(logging.DEBUG)
-fh = logging.FileHandler('logs/core.log')
-fh.setLevel(logging.DEBUG)
-logger.addHandler(fh)
-
 class Core():
     def __init__(self, redis: object, currency: str, freq_analyser: object):
+
+        self.logger = logging.getLogger("root.{}".format(__name__))
         self._redis = redis
         self.currency = (currency, '{} / usdt'.format(currency).upper())# param0: currency code; param1: curreny / usdt
         self.freq_analyser = freq_analyser
@@ -41,17 +37,15 @@ class Core():
                 huobi_record = json.loads(self._redis.get('huobi'))
                 binance_record = json.loads(self._redis.get('binance'))
             except Exception:
-                print(traceback.format_exc())
+                self.logger.warning(Exception)
                 continue
             self._print_on_terminal(huobi_record, binance_record, None, render_type='normal')
             try:
                 self._is_profitable(huobi_record, binance_record)
                 self._is_profitable(binance_record, huobi_record)
 
-                # next_step = self._is_profitable(huobi_record, binance_record)
-                # if next_step == 'continue': continue
             except Exception:
-                print(traceback.format_exc())
+                self.logger.error(Exception)
     
     def _is_profitable(self, a: json, b: json):
 
@@ -98,7 +92,7 @@ class Core():
                                 try:
                                     b_buy_result = trade_handler[b_market]('buy', b_min_ask, available_trade_amount)
                                 except Exception:
-                                    print(traceback.format_exc())
+                                    self.logger.warning(Exception)
                                 if b_buy_result:
                                     self._print_on_terminal('buy', b, available_trade_amount, render_type='trade_operation')
                                 else:
@@ -108,7 +102,7 @@ class Core():
                         
                             self._print_on_terminal(None, None, None, render_type='status')                               
                         except Exception:
-                            print(traceback.format_exc())
+                            self.logger.warning(Exception)
                     else:
                         self._print_on_terminal(None, None, None, render_type='continue')                      
 
@@ -188,8 +182,8 @@ class Core():
     def _print_on_terminal(self, *data, render_type='normal'):
         time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         title = '----------------------------------'+self.currency[1]+'------------------------------\r\n'+time
-        print(title)
-        # logger.info(title)
+
+        self.logger.debug(title)
 
         if render_type == 'normal':
             
@@ -202,10 +196,8 @@ class Core():
                     .format(str(b_record['market']), b_record['max_bid'], b_record['bid_amount'],\
                     b_record['min_ask'], b_record['ask_amount'])
             
-            print(C().normal().green(a_msg))
-            print(C().normal().bright().blue(b_msg))
-            # logger.info(a_msg)
-            # logger.info(b_msg)
+            self.logger.debug(a_msg)
+            self.logger.debug(b_msg)
 
         if render_type == 'trade_event':
 
@@ -214,14 +206,12 @@ class Core():
             available_amount = min(float(a_record['bid_amount']), float(b_record['ask_amount']))
             msg = '\r\n>>>>>>>>>>>>>>>>>>>>>>Trade Event<<<<<<<<<<<<<<<<<<<<\r\n--->{} max bid: {:.20f} > {} min ask: {:.20f} --- available amount: {:.20f} --- operable amount: {:.20f}\r\n'.\
                         format(a_record['market'], float(a_record['max_bid']), b_record['market'], float(b_record['min_ask']), available_amount, operable_amount)
-            
-            print(C().normal().red(msg))
-            # logger.info(msg)
+            self.logger.info(msg)
 
         if render_type == 'trade_rule':
             margin, rule_label, trade_rate = data[0], data[1], data[2]
             msg = '---> current margin: {}, applied trade rule: {} with rate: {}'.format(margin, rule_label, trade_rate )
-            print(C().normal().red(msg))           
+            self.logger.info(msg)         
 
         if render_type == 'status':
             table = PrettyTable()
@@ -229,17 +219,16 @@ class Core():
             if self._redis.get('exec_mode') == b'simulation':
                 table.add_row(["HUOBI", round( float(self._redis.get('huobi_currency_amount')), 20), round( float(self._redis.get('huobi_usdt_amount')) , 20)])
                 table.add_row(["BINANCE", round(float(self._redis.get('binance_currency_amount')), 20), round(float(self._redis.get('binance_usdt_amount')), 20)])
-                print(table)
-                # logger.info(table)
+                self.logger.info("{}{}".format("\r\n", table))
                 
                 currency_profit = float(self._redis.get('huobi_currency_amount')) + float(self._redis.get('binance_currency_amount')) - INIT_TOTAL_CURRENCY_AMOUNT
                 usdt_profit = float(self._redis.get('huobi_usdt_amount')) + float(self._redis.get('binance_usdt_amount')) - INIT_TOTAL_USDT_AMOUNT
-                msg = '---> initial {} amount / profit: {} / {:.20f} <--- \r\n---> initial usdt amount / profit: {} / {:.20f} <---'.\
+                msg = '\r\n---> initial {} amount / profit: {} / {:.20f} <--- \r\n---> initial usdt amount / profit: {} / {:.20f} <---'.\
                     format(self.currency[0], INIT_TOTAL_CURRENCY_AMOUNT, currency_profit, INIT_TOTAL_USDT_AMOUNT, usdt_profit)
-                print(C(msg, fore=190))
-                # logger.info(msg)
+              
+                self.logger.info(msg)
             else:
-                print('print for prod status')
+                self.logger.info('print for prod status')
 
         if render_type == 'trade_operation':
 
@@ -253,8 +242,7 @@ class Core():
             elif operation == 'buy':
                 operation_total_price = float(platform['min_ask']) * float(operable_amount)
                 msg = '---> {:.20f} {} were purchased in {} with the price {:.20f} usdt <---'.format(operable_amount, self.currency[0].upper(), platform['market'], operation_total_price)
-            print(C().normal().red(msg))
-            # logger.info(msg)
+            self.logger.info(msg)
 
         if render_type == 'continue':
 
@@ -264,6 +252,5 @@ class Core():
             else:
                 msg = '--->  this trade cannot be handled in terms of account balance, waiting for the next <---'
 
-            print(C().normal().red(msg))
-            # logger.info(msg)
+            self.logger.info(msg)
             self._print_on_terminal(None, None, None, render_type='status')

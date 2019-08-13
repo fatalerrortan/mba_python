@@ -13,12 +13,15 @@ import hashlib
 import hmac
 import base64
 import time
+import logging
 
 tracemalloc.start()
 
 class Huobi(Platform):
  
     def __init__(self, ws_url: str, api_host: str, redis: object, api_key: str, secret_key: str):
+        
+        self.logger = logging.getLogger("root.{}".format(__name__))
         self._ws_url = ws_url
         self.redis = redis
         self.sub = None
@@ -36,7 +39,7 @@ class Huobi(Platform):
             while True:
 
                 if not ws.open:
-                    print('............... reconnecting to HUOBI websocket ...............')
+                    self.logger.warning("............... reconnecting to BINANCE websocket ...............")                           
                     ws = await websockets.connect(self._ws_url)
                     await ws.send(sub)
                     
@@ -45,7 +48,7 @@ class Huobi(Platform):
                     result = gzip.decompress(raw_respons).decode('utf-8')
                     
                 except Exception:
-                    print(traceback.format_exc())
+                    self.logger.warning(Exception)
                     continue                             
                 if result[2:6] == 'ping':
                     ping = str(json.loads(result).get('ping'))
@@ -64,7 +67,8 @@ class Huobi(Platform):
                         json_str = '{"market": "huobi","max_bid": '+str(max_bid)+', "bid_amount": '+str(bid_amount)+',"min_ask": '+str(min_ask)+', "ask_amount": '+str(ask_amount)+'}'                        
                         self.redis.set('huobi', json_str)                      
                     except Exception:
-                        print(traceback.format_exc())     
+                        self.logger.warning(Exception)
+                        continue    
 
     async def _get_max_bid(self, bids: list):
         # get the highst bid price of the given bids cluster
@@ -118,7 +122,6 @@ class Huobi(Platform):
                     if len(result) == 2: break
                     if (balance["currency"] in currency_list) and (balance["type"] == "trade"):
                         result[balance["currency"]] = balance
-                    # print(balance)
       
                 return result
 

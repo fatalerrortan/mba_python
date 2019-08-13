@@ -7,6 +7,7 @@ import configparser
 from prettytable import PrettyTable
 from analyser.Freq_Analyser import Freq_Analyser
 import signal
+import logging
 
 config = configparser.ConfigParser()
 config.read('./config_dev.ini')
@@ -37,9 +38,32 @@ REDIS_URL = config['DATABASE']['redis_url']
 REDIS_PORT = config['DATABASE']['redis_port']
 REDIS_INDEX = config['DATABASE']['redis_index']
 
+logger = logging.getLogger("root")
+logger.setLevel(logging.DEBUG)
+
+formatter = logging.Formatter("%(asctime)s / %(levelname)s / %(name)s / %(message)s")
+
+sh = logging.StreamHandler()
+sh.setLevel(logging.DEBUG)
+sh.setFormatter(formatter)
+
+fh = logging.FileHandler("logs/core.log")
+fh.setLevel(logging.INFO)
+fh.setFormatter(formatter)
+
+logger.addHandler(sh)
+logger.addHandler(fh)
+
 if __name__ == '__main__':
         
-        redis = redis.Redis(host=REDIS_URL, port=REDIS_PORT, db=REDIS_INDEX)
+        logger.info(">>> TanMba is running <<<")
+        
+        try:
+                redis = redis.Redis(host=REDIS_URL, port=REDIS_PORT, db=REDIS_INDEX)
+        except Exception:
+                logger.critical(Exception)
+                raise Exception
+
         if EXEC_MODE == 'simulation':
                 redis.set('exec_mode', 'simulation')
                 redis.set('huobi_currency_amount', HUOBI_CURRENCY_AMOUNT)  
@@ -56,25 +80,28 @@ if __name__ == '__main__':
         table.field_names = ["Platforms", config['MODE']['currency_code'].upper(), "USDT"]
         table.add_row(["HUOBI", float(redis.get('huobi_currency_amount')), float(redis.get('huobi_usdt_amount'))])
         table.add_row(["BINANCE", float(redis.get('binance_currency_amount')), float(redis.get('binance_usdt_amount'))])
-        print(table)
+
+        logger.info("{}{}".format("\r\n", table))
 
         signal.signal(signal.SIGINT, freq_analyser.write_to_csv)
 
-        # asyncio.get_event_loop().run_until_complete(asyncio.gather(
-        #         huobi_coroutine.fetch_subscription(sub=HUOBI_TOPIC_MARKET_DEPTH),
-        #         binance_coroutine.fetch_subscription(),
-        #         core_coroutine.bricks_checking()
-        #         ))
+        asyncio.get_event_loop().run_until_complete(asyncio.gather(
+                huobi_coroutine.fetch_subscription(sub=HUOBI_TOPIC_MARKET_DEPTH),
+                binance_coroutine.fetch_subscription(),
+                core_coroutine.bricks_checking()
+                ))
+
+        # .................. testing ..........................................       
 
         # test = huobi_coroutine.get_account_balance("eos", "usdt")
         # test1 = huobi_coroutine.place_order(0.1, 6.11, "eosusdt", "sell-ioc")
         # print(test1)
         # test2 = huobi_coroutine.get_account_balance("eos", "usdt")
         # print(test2)
-        binance_coroutine.get_account_balance()
+        
 
-
-
+        # print(binance_coroutine.place_order("eosusdt", "buy", "LIMIT", 0.01, 4.19))
+        # logger.info(binance_coroutine.get_account_balance("eos","usdt"))
         
         
         

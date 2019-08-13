@@ -2,10 +2,13 @@ import csv
 import traceback
 from colr import Colr as C
 import os
+import logging
 
 class Freq_Analyser:
     
     def __init__(self, currency:str):
+
+        self.logger = logging.getLogger("root.{}".format(__name__))
         self.currency = currency
         self.freq_dict = {}
         self.freq_margin_list = []
@@ -14,7 +17,7 @@ class Freq_Analyser:
         try:
             self.__format_csv()
         except Exception as e:
-            print(traceback.format_exc())
+            self.logger.error(Exception)
 
     def __format_csv(self):
 
@@ -38,7 +41,7 @@ class Freq_Analyser:
 
     def write_to_csv(self, a, b):
         msg = '---> converting collected data to csv, then the program will be terminated ... <---'
-        print(C(msg, fore=41))
+        self.logger.info(msg)
 
         sorted_freq_dict = dict(sorted(self.freq_dict.items()))
 
@@ -47,7 +50,7 @@ class Freq_Analyser:
             for margin, freq in sorted_freq_dict.items():
                 csv_file.write('{},{}\r\n'.format(margin, freq))
 
-        exit(C('bye bye 再见 ciao wiedersehen :)', fore=41))
+        exit(self.logger.info('bye bye 再见 ciao wiedersehen :)'))
         
     def get_freq_result(self):
         pass
