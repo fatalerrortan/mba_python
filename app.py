@@ -99,8 +99,10 @@ if __name__ == '__main__':
         # test2 = huobi_coroutine.get_account_balance("eos", "usdt")
         # print(test2)
         
+        # on working!!!
 
-        # print(binance_coroutine.place_order("eosusdt", "buy", "LIMIT", 0.01, 4.19))
+        # logger.info(binance_coroutine.get_account_balance("eos","usdt"))
+        # logger.debug(binance_coroutine.place_order("eosusdt", "buy", "LIMIT", 3.4, 3.011))
         # logger.info(binance_coroutine.get_account_balance("eos","usdt"))
         
         

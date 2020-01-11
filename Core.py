@@ -84,7 +84,7 @@ class Core():
                     a_pre_result = trade_handler[a_market]('sell', a_max_bid, available_trade_amount, advance_mode=True)
                     b_pre_result = trade_handler[b_market]('buy', b_min_ask, available_trade_amount, advance_mode=True)
 
-                    if not a_pre_result == None and not b_pre_result == None:
+                    if a_pre_result and b_pre_result:
                         try:  
                             a_sell_result = trade_handler[a_market]('sell', a_max_bid, available_trade_amount)
                             if a_sell_result:
@@ -117,6 +117,10 @@ class Core():
     def _huobi_trade_handler(self, operation: str, price: float, amount: float, advance_mode=None):
         if self._redis.get('exec_mode') == b'simulation':
             
+            order_size = price * amount
+
+            if order_size <= 10: return None
+
             if operation == 'sell':
                 new_currency_amount = float(self._redis.get('huobi_currency_amount')) - amount
                 new_usdt_amount = float(self._redis.get('huobi_usdt_amount')) + amount * price
@@ -145,6 +149,11 @@ class Core():
 
     def _binance_trade_handler(self, operation: str, price: float, amount: float, advance_mode=None):
         if self._redis.get('exec_mode') == b'simulation':
+
+            #implementation of binance trade rule - allowed order size >= 10 USDT
+            order_size = price * amount
+
+            if order_size <= 10: return None
 
             if operation == 'sell':
                 new_currency_amount = float(self._redis.get('binance_currency_amount')) - amount
@@ -180,6 +189,12 @@ class Core():
         return (None, None, None)       
 
     def _print_on_terminal(self, *data, render_type='normal'):
+        """[summary]
+        
+        Keyword Arguments:
+            *data - the specific sub-parameters depend on the given render type
+            render_type {str} -- [description] (default: {'normal'})
+        """
         time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         title = '----------------------------------'+self.currency[1]+'------------------------------\r\n'+time
 
@@ -247,6 +262,7 @@ class Core():
         if render_type == 'continue':
 
             platform = data[0]
+
             if platform:
                 msg = '---> {} platform cannot confirm this trade, then breaking this transaction and waiting for the next <---'.format(platform)
             else:

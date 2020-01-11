@@ -113,6 +113,8 @@ class Binance(Platform):
             - TAKE_PROFIT: trade with current market price if higher than a stop price 
             - TAKE_PROFIT_LIMIT: trade with specified price if higher than a stop price
         timeInForce：IOC - Immediate or Cancel 
+                     GTC - Good till cancel
+                     FOK - Fill or Kill
         """
         params = {
            "symbol": symbol.upper(),
@@ -126,9 +128,10 @@ class Binance(Platform):
         }
 
         request_url = self._prepare_request_data("/api/v3/order", params)
+        self.logger.debug(request_url)
 
         try:
-            balances = requests.get(request_url, headers=self._headers).json()
+            balances = requests.post(request_url, headers=self._headers).json()
         except Exception:
             self.logger.error(Exception)
             return None
