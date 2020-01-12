@@ -48557,3 +48557,44 @@
 2020-01-11 18:37:00,441 / INFO / root.Core / 
 ---> initial eos amount / profit: 84.0 / 0.00000000000000000000 <--- 
 ---> initial usdt amount / profit: 560.0 / 0.00838999999996303814 <---
+2020-01-11 18:47:59,841 / INFO / root.Core / 
+>>>>>>>>>>>>>>>>>>>>>>Trade Event<<<<<<<<<<<<<<<<<<<<
+--->huobi max bid: 3.08000000000000007105 > binance min ask: 3.07880000000000020322 --- available amount: 63.79999999999999715783 --- operable amount: 4.20000000000000017764
+
+2020-01-11 18:47:59,842 / INFO / root.Core / ---> current margin: 0.0011999999999998678, applied trade rule: 0.0009999-0.002 with rate: 0.05
+2020-01-11 18:47:59,848 / INFO / root.Core / ---> 4.20000000000000017764 EOS were sold in huobi with the price 12.93600000000000171951 usdt <---
+2020-01-11 18:47:59,850 / INFO / root.Core / ---> 4.20000000000000017764 EOS were purchased in binance with the price 12.93096000000000067587 usdt <---
+2020-01-11 18:47:59,852 / INFO / root.Core / 
++-----------+--------------------+--------------------+
+| Platforms |        EOS         |        USDT        |
++-----------+--------------------+--------------------+
+|   HUOBI   | 29.829999999999995 |     317.513691     |
+|  BINANCE  | 54.17000000000001  | 242.49973899999998 |
++-----------+--------------------+--------------------+
+2020-01-11 18:47:59,852 / INFO / root.Core / 
+---> initial eos amount / profit: 84.0 / 0.00000000000000000000 <--- 
+---> initial usdt amount / profit: 560.0 / 0.01342999999997118721 <---
+2020-01-11 18:49:09,627 / INFO / root.analyser.Freq_Analyser / ---> converting collected data to csv, then the program will be terminated ... <---
+2020-01-11 18:49:09,634 / INFO / root.analyser.Freq_Analyser / bye bye 再见 ciao wiedersehen :)
+2020-01-12 13:40:10,083 / INFO / root / >>> TanMba is running <<<
+2020-01-12 16:03:56,571 / INFO / root / >>> TanMba is running <<<
+2020-01-12 16:54:15,052 / INFO / root / >>> TanMba is running <<<
+2020-01-12 17:42:17,339 / INFO / root / >>> TanMba is running <<<
+2020-01-12 17:44:15,804 / INFO / root / >>> TanMba is running <<<
+2020-01-12 19:11:06,188 / INFO / root / >>> TanMba is running <<<
+2020-01-12 19:14:14,685 / INFO / root / >>> TanMba is running <<<
+2020-01-12 19:22:18,635 / INFO / root / >>> TanMba is running <<<
+2020-01-12 19:25:06,237 / INFO / root / >>> TanMba is running <<<
+2020-01-12 19:44:10,998 / INFO / root / >>> TanMba is running <<<
+2020-01-12 19:45:58,209 / INFO / root / >>> TanMba is running <<<
+2020-01-12 19:47:59,936 / INFO / root / >>> TanMba is running <<<
+2020-01-12 20:02:28,090 / INFO / root / >>> TanMba is running <<<
+2020-01-12 20:04:31,232 / INFO / root / >>> TanMba is running <<<
+2020-01-12 20:23:00,911 / INFO / root / >>> TanMba is running <<<
+2020-01-12 20:23:05,804 / INFO / root / 
++-----------+------------+------------+
+| Platforms |    EOS     |    USDT    |
++-----------+------------+------------+
+|   HUOBI   |   0.1994   | 9.72044542 |
+|  BINANCE  | 3.39660000 | 2.76362000 |
++-----------+------------+------------+
