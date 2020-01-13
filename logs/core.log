@@ -48557,3 +48557,15 @@
 2020-01-11 18:37:00,441 / INFO / root.Core / 
 ---> initial eos amount / profit: 84.0 / 0.00000000000000000000 <--- 
 ---> initial usdt amount / profit: 560.0 / 0.00838999999996303814 <---
+2020-01-13 23:04:25,133 / INFO / root / >>> TanMba is running <<<
+2020-01-13 23:04:25,165 / INFO / root / 
++-----------+------+-------+
+| Platforms | EOS  |  USDT |
++-----------+------+-------+
+|   HUOBI   | 42.0 | 280.0 |
+|  BINANCE  | 42.0 | 280.0 |
++-----------+------+-------+
+2020-01-13 23:06:16,722 / INFO / root.analyser.Freq_Analyser / ---> converting collected data to csv, then the program will be terminated ... <---
+2020-01-13 23:06:16,723 / INFO / root.analyser.Freq_Analyser / bye bye 再见 ciao wiedersehen :)
+2020-01-13 23:06:44,598 / INFO / root / >>> TanMba is running <<<
+2020-01-13 23:12:31,466 / INFO / root / >>> TanMba is running <<<

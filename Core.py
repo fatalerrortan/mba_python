@@ -111,7 +111,11 @@ class Core():
     
     def _get_trade_rules(self, currency):
         with open('rules/{}'.format(TRADE_RULE_FILE)) as trade_rule_file:
-            trade_rule_json = json.load(trade_rule_file)[currency]    
+            try:
+                trade_rule_json = json.load(trade_rule_file)[currency]    
+            except KeyError:
+                trade_rule_json = json.load(trade_rule_file)['default']
+                self.logger.info('---> cannot find pre-defined trade rule, using default')    
             return trade_rule_json    
 
     def _huobi_trade_handler(self, operation: str, price: float, amount: float, advance_mode=None):
@@ -125,9 +129,9 @@ class Core():
                 new_currency_amount = float(self._redis.get('huobi_currency_amount')) - amount
                 new_usdt_amount = float(self._redis.get('huobi_usdt_amount')) + amount * price
                 if advance_mode:
-                    if new_currency_amount <= 0 or new_usdt_amount <= 0:
-                        return None
-                    else: return True
+                    if new_currency_amount >= 0 and new_usdt_amount >= 0:
+                        return True
+                    else: return None
                 else:
                     self._redis.set('huobi_currency_amount', new_currency_amount)
                     self._redis.set('huobi_usdt_amount', new_usdt_amount)
@@ -137,9 +141,9 @@ class Core():
                 new_currency_amount = float(self._redis.get('huobi_currency_amount')) + amount
                 new_usdt_amount = float(self._redis.get('huobi_usdt_amount')) - amount * price
                 if advance_mode:
-                    if new_currency_amount <= 0 or new_usdt_amount <= 0:
-                        return None
-                    else: return True
+                    if new_currency_amount >= 0 and new_usdt_amount >= 0:
+                        return True
+                    else: return None
                 else:
                     self._redis.set('huobi_currency_amount', new_currency_amount)
                     self._redis.set('huobi_usdt_amount', new_usdt_amount)
@@ -159,9 +163,9 @@ class Core():
                 new_currency_amount = float(self._redis.get('binance_currency_amount')) - amount
                 new_usdt_amount = float(self._redis.get('binance_usdt_amount')) + amount * price
                 if advance_mode:
-                    if new_currency_amount <= 0 or new_usdt_amount <= 0:
-                        return None
-                    else: return True
+                    if new_currency_amount >= 0 and new_usdt_amount >= 0:
+                        return True
+                    else: return None
                 else:
                     self._redis.set('binance_currency_amount', new_currency_amount)
                     self._redis.set('binance_usdt_amount', new_usdt_amount)
@@ -171,9 +175,9 @@ class Core():
                 new_currency_amount = float(self._redis.get('binance_currency_amount')) + amount
                 new_usdt_amount = float(self._redis.get('binance_usdt_amount')) - amount * price
                 if advance_mode:
-                    if new_currency_amount <= 0 or new_usdt_amount <= 0:
-                        return None
-                    else: return True
+                    if new_currency_amount >= 0 and new_usdt_amount >= 0:
+                        return True
+                    else: return None
                 else:
                     self._redis.set('binance_currency_amount', new_currency_amount)
                     self._redis.set('binance_usdt_amount', new_usdt_amount)
