@@ -112,10 +112,10 @@ class Core():
     def _get_trade_rules(self, currency):
         with open('rules/{}'.format(TRADE_RULE_FILE)) as trade_rule_file:
             try:
-                trade_rule_json = json.load(trade_rule_file)[currency]    
+                trade_rule_json = json.load(trade_rule_file)[currency] 
             except KeyError:
-                trade_rule_json = json.load(trade_rule_file)['default']
                 self.logger.info('---> cannot find pre-defined trade rule, using default')    
+                return self._get_trade_rules('default')
             return trade_rule_json    
 
     def _huobi_trade_handler(self, operation: str, price: float, amount: float, advance_mode=None):
