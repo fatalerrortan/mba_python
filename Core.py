@@ -69,7 +69,7 @@ class Core():
             available_trade_amount = min(a_bid_amount, b_ask_amount)
             margin = a_max_bid - b_min_ask
             
-            if not round(margin, 3) == 0:
+            if not round(margin, 4) == 0:
                 self.freq_analyser.set_freq(round(margin, 3)) 
 
                 rule_label, trade_rate, MAX_TRADE_AMOUNT = self._get_max_trade_amount(margin)
@@ -111,7 +111,7 @@ class Core():
     
     def _get_trade_rules(self, currency):
         with open('rules/{}'.format(TRADE_RULE_FILE)) as trade_rule_file:
-            trade_rule_json = json.load(trade_rule_file)[currency]    
+            trade_rule_json = json.load(trade_rule_file)[currency]
             return trade_rule_json    
 
     def _huobi_trade_handler(self, operation: str, price: float, amount: float, advance_mode=None):
