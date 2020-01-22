@@ -58,13 +58,18 @@ if __name__ == '__main__':
         
         logger.info(">>> TanMba is running <<<")
 
-        if EXEC_MODE == 'simulation':
+        try:
+                redis = redis.Redis(host=REDIS_URL, port=REDIS_PORT, db=REDIS_INDEX)
+        except Exception:
+                logger.critical(Exception)
+                raise Exception
+        
+        binance_coroutine = Binance(BINANCE_WS_URL+BINANCE_STREAM, BINANCE_API_HOST, redis, BINANCE_API_KEY, BINANCE_SECRET_KEY)
+        huobi_coroutine = Huobi(HUOBI_WS_URL, HUOBI_API_HOST, redis, HUOBI_API_KEY, HUOBI_SECRET_KEY)    
+        freq_analyser = Freq_Analyser(config['MODE']['currency_code'])
+        core_coroutine = Core(redis, config['MODE']['currency_code'], freq_analyser) 
 
-                try:
-                        redis = redis.Redis(host=REDIS_URL, port=REDIS_PORT, db=REDIS_INDEX)
-                except Exception:
-                        logger.critical(Exception)
-                        raise Exception
+        if EXEC_MODE == 'simulation':
 
                 redis.set('exec_mode', 'simulation')
                 redis.set('huobi_currency_amount', HUOBI_CURRENCY_AMOUNT)  
@@ -72,40 +77,36 @@ if __name__ == '__main__':
                 redis.set('binance_currency_amount', BINANCE_CURRENCY_AMOUNT)  
                 redis.set('binance_usdt_amount', BINANCE_USDT_AMOUNT)
         else:
-                redis = None 
+                redis.set('exec_mode', 'production')
+                
+                huobi_account_info = huobi_coroutine.get_account_balance(config['MODE']['currency_code'], "usdt")
+                HUOBI_CURRENCY_AMOUNT = huobi_account_info['eos']['balance']
+                HUOBI_USDT_AMOUNT = huobi_account_info['usdt']['balance']        
 
-        binance_coroutine = Binance(BINANCE_WS_URL+BINANCE_STREAM, BINANCE_API_HOST, redis, BINANCE_API_KEY, BINANCE_SECRET_KEY)
-        huobi_coroutine = Huobi(HUOBI_WS_URL, HUOBI_API_HOST, redis, HUOBI_API_KEY, HUOBI_SECRET_KEY)    
-        freq_analyser = Freq_Analyser(config['MODE']['currency_code'])
-        core_coroutine = Core(redis, config['MODE']['currency_code'], freq_analyser) 
+                binance_account_info = binance_coroutine.get_account_balance(config['MODE']['currency_code'], "usdt")
+                BINANCE_CURRENCY_AMOUNT = binance_account_info['eos']['free']
+                BINANCE_USDT_AMOUNT = binance_account_info['usdt']['free']
 
-        huobi_account_info = huobi_coroutine.get_account_balance(config['MODE']['currency_code'], "usdt")
-        HUOBI_CURRENCY_AMOUNT = huobi_account_info['eos']['balance']
-        HUOBI_USDT_AMOUNT = huobi_account_info['usdt']['balance']        
-
-        binance_account_info = binance_coroutine.get_account_balance(config['MODE']['currency_code'], "usdt")
-        BINANCE_CURRENCY_AMOUNT = binance_account_info['eos']['free']
-        BINANCE_USDT_AMOUNT = binance_account_info['usdt']['free']
+                redis.set('huobi_currency_amount', HUOBI_CURRENCY_AMOUNT)  
+                redis.set('huobi_usdt_amount', HUOBI_USDT_AMOUNT)
+                redis.set('binance_currency_amount', BINANCE_CURRENCY_AMOUNT)  
+                redis.set('binance_usdt_amount', BINANCE_USDT_AMOUNT)
 
         table = PrettyTable()
         table.field_names = ["Platforms", config['MODE']['currency_code'].upper(), "USDT"]
-        
-        if EXEC_MODE == 'simulation':
-                table.add_row(["HUOBI", float(redis.get('huobi_currency_amount')), float(redis.get('huobi_usdt_amount'))])
-                table.add_row(["BINANCE", float(redis.get('binance_currency_amount')), float(redis.get('binance_usdt_amount'))])
-        else:
-                table.add_row(["HUOBI", HUOBI_CURRENCY_AMOUNT, HUOBI_USDT_AMOUNT])
-                table.add_row(["BINANCE", BINANCE_CURRENCY_AMOUNT, BINANCE_USDT_AMOUNT]) 
+
+        table.add_row(["HUOBI", float(redis.get('huobi_currency_amount')), float(redis.get('huobi_usdt_amount'))])
+        table.add_row(["BINANCE", float(redis.get('binance_currency_amount')), float(redis.get('binance_usdt_amount'))])
 
         logger.info("{}{}".format("\r\n", table))
 
         signal.signal(signal.SIGINT, freq_analyser.write_to_csv)
 
-        # asyncio.get_event_loop().run_until_complete(asyncio.gather(
-        #         huobi_coroutine.fetch_subscription(sub=HUOBI_TOPIC_MARKET_DEPTH),
-        #         binance_coroutine.fetch_subscription(),
-        #         core_coroutine.bricks_checking()
-        #         ))
+        asyncio.get_event_loop().run_until_complete(asyncio.gather(
+                huobi_coroutine.fetch_subscription(sub=HUOBI_TOPIC_MARKET_DEPTH),
+                binance_coroutine.fetch_subscription(),
+                core_coroutine.bricks_checking()
+                ))
 
         # .................. testing ..........................................       
 

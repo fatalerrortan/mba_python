@@ -70,7 +70,7 @@ class Core():
             margin = a_max_bid - b_min_ask
             
             if not round(margin, 4) == 0:
-                self.freq_analyser.set_freq(round(margin, 3)) 
+                self.freq_analyser.set_freq(round(margin, 4)) 
 
                 rule_label, trade_rate, MAX_TRADE_AMOUNT = self._get_max_trade_amount(margin)
 
@@ -119,71 +119,76 @@ class Core():
             return trade_rule_json    
 
     def _huobi_trade_handler(self, operation: str, price: float, amount: float, advance_mode=None):
-        if self._redis.get('exec_mode') == b'simulation':
             
-            order_size = price * amount
+        order_size = price * amount
 
-            if order_size <= 10: return None
+        if order_size <= 10: return None
 
-            if operation == 'sell':
-                new_currency_amount = float(self._redis.get('huobi_currency_amount')) - amount
-                new_usdt_amount = float(self._redis.get('huobi_usdt_amount')) + amount * price
-                if advance_mode:
-                    if new_currency_amount >= 0 and new_usdt_amount >= 0:
-                        return True
-                    else: return None
-                else:
+        if operation == 'sell':
+            new_currency_amount = float(self._redis.get('huobi_currency_amount')) - amount
+            new_usdt_amount = float(self._redis.get('huobi_usdt_amount')) + amount * price
+            if advance_mode:
+                if new_currency_amount >= 0 and new_usdt_amount >= 0:
+                    return True
+                else: return None
+            else:
+                if self._redis.get('exec_mode') == b'simulation':
                     self._redis.set('huobi_currency_amount', new_currency_amount)
                     self._redis.set('huobi_usdt_amount', new_usdt_amount)
                     return True
-
-            if operation == 'buy':
-                new_currency_amount = float(self._redis.get('huobi_currency_amount')) + amount
-                new_usdt_amount = float(self._redis.get('huobi_usdt_amount')) - amount * price
-                if advance_mode:
-                    if new_currency_amount >= 0 and new_usdt_amount >= 0:
-                        return True
-                    else: return None
                 else:
+                    exit("production in sell")
+
+        if operation == 'buy':
+            new_currency_amount = float(self._redis.get('huobi_currency_amount')) + amount
+            new_usdt_amount = float(self._redis.get('huobi_usdt_amount')) - amount * price
+            if advance_mode:
+                if new_currency_amount >= 0 and new_usdt_amount >= 0:
+                    return True
+                else: return None
+            else:
+                if self._redis.get('exec_mode') == b'simulation':
                     self._redis.set('huobi_currency_amount', new_currency_amount)
                     self._redis.set('huobi_usdt_amount', new_usdt_amount)
                     return True
-        else:
-            exit('to do production')
+                else:
+                    exit("production in buy")
 
     def _binance_trade_handler(self, operation: str, price: float, amount: float, advance_mode=None):
-        if self._redis.get('exec_mode') == b'simulation':
+        
+        order_size = price * amount
 
-            #implementation of binance trade rule - allowed order size >= 10 USDT
-            order_size = price * amount
+        if order_size <= 10: return None
 
-            if order_size <= 10: return None
-
-            if operation == 'sell':
-                new_currency_amount = float(self._redis.get('binance_currency_amount')) - amount
-                new_usdt_amount = float(self._redis.get('binance_usdt_amount')) + amount * price
-                if advance_mode:
-                    if new_currency_amount >= 0 and new_usdt_amount >= 0:
-                        return True
-                    else: return None
-                else:
+        if operation == 'sell':
+            new_currency_amount = float(self._redis.get('binance_currency_amount')) - amount
+            new_usdt_amount = float(self._redis.get('binance_usdt_amount')) + amount * price
+            if advance_mode:
+                if new_currency_amount >= 0 and new_usdt_amount >= 0:
+                    return True
+                else: return None
+            else:
+                if self._redis.get('exec_mode') == b'simulation':
                     self._redis.set('binance_currency_amount', new_currency_amount)
                     self._redis.set('binance_usdt_amount', new_usdt_amount)
                     return True
-
-            if operation == 'buy':
-                new_currency_amount = float(self._redis.get('binance_currency_amount')) + amount
-                new_usdt_amount = float(self._redis.get('binance_usdt_amount')) - amount * price
-                if advance_mode:
-                    if new_currency_amount >= 0 and new_usdt_amount >= 0:
-                        return True
-                    else: return None
                 else:
+                    exit("production in sell")
+
+        if operation == 'buy':
+            new_currency_amount = float(self._redis.get('binance_currency_amount')) + amount
+            new_usdt_amount = float(self._redis.get('binance_usdt_amount')) - amount * price
+            if advance_mode:
+                if new_currency_amount >= 0 and new_usdt_amount >= 0:
+                    return True
+                else: return None
+            else:
+                if self._redis.get('exec_mode') == b'simulation':
                     self._redis.set('binance_currency_amount', new_currency_amount)
                     self._redis.set('binance_usdt_amount', new_usdt_amount)
                     return True
-        else:
-            exit('to do production')
+                else:
+                    exit("production in buy")
     
     def _get_max_trade_amount(self, margin: float):
         rules = self.trade_rule_json
