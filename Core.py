@@ -6,6 +6,8 @@ import json
 from prettytable import PrettyTable
 import configparser
 import logging
+from platforms.Huobi import Huobi
+from platforms.Binance import Binance
 
 config = configparser.ConfigParser()
 config.read('./config_dev.ini')
@@ -137,7 +139,7 @@ class Core():
                     self._redis.set('huobi_usdt_amount', new_usdt_amount)
                     return True
                 else:
-                    exit("production in sell")
+                    return Huobi.place_order(amount, price, "eosusdt", "sell-ioc")
 
         if operation == 'buy':
             new_currency_amount = float(self._redis.get('huobi_currency_amount')) + amount
@@ -152,7 +154,7 @@ class Core():
                     self._redis.set('huobi_usdt_amount', new_usdt_amount)
                     return True
                 else:
-                    exit("production in buy")
+                    return Huobi.place_order(amount, price, "eosusdt", "buy-ioc")
 
     def _binance_trade_handler(self, operation: str, price: float, amount: float, advance_mode=None):
         
@@ -173,7 +175,7 @@ class Core():
                     self._redis.set('binance_usdt_amount', new_usdt_amount)
                     return True
                 else:
-                    exit("production in sell")
+                    return Binance.place_order("eosusdt", "sell", "LIMIT", amount, price)
 
         if operation == 'buy':
             new_currency_amount = float(self._redis.get('binance_currency_amount')) + amount
@@ -188,7 +190,7 @@ class Core():
                     self._redis.set('binance_usdt_amount', new_usdt_amount)
                     return True
                 else:
-                    exit("production in buy")
+                    return Binance.place_order("eosusdt", "buy", "LIMIT", amount, price)
     
     def _get_max_trade_amount(self, margin: float):
         rules = self.trade_rule_json

@@ -156,13 +156,15 @@ class Huobi(Platform):
         }
 
         post_data = json.dumps(post_data)
-    
-        while True:
+
+        try:
             request_url = self._prepare_request_data("POST", "/v1/order/orders/place")
-            result = requests.post(request_url, post_data, headers=headers).json()
-            if result["status"] == "error" and result["err-code"] == "api-signature-not-valid":
-                continue
-            return result
+            if result["status"] == "ok":
+                return result
+            else: return None
+        except Exception:
+            self.logger.warning(Exception)
+            return None
             
     def _prepare_request_data(self, post_method: str, uri: str, **params):
         request_params_dict = {

@@ -100,7 +100,7 @@ class Binance(Platform):
 
         return result
         
-    def place_order(self, symbol:str, side: str, type: str, quantity: float, price: float):
+    def place_order(self, symbol:str, side: str, type: str, quantity: float, price: float, test_mode=None):
         """
         symbol: currency name e.g. EOSUSDT
         side: trade direction e.g SELL
@@ -126,12 +126,14 @@ class Binance(Platform):
            # "stopPrice": stop_price,
            "newOrderRespType": "RESULT"
         }
-
-        request_url = self._prepare_request_data("/api/v3/order", params)
-        self.logger.debug(request_url)
-
+        endpoint = "/api/v3/order/test" if test_mode == True else "/api/v3/order"
+        request_url = self._prepare_request_data(endpoint, params)
+        # self.logger.debug(request_url)
         try:
             balances = requests.post(request_url, headers=self._headers).json()
+            if balances["orderId"]: 
+                return balances
+            else: return None
         except Exception:
             self.logger.error(Exception)
             return None

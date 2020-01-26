@@ -119,7 +119,7 @@ if __name__ == '__main__':
         # on working!!!
 
         # logger.info(binance_coroutine.get_account_balance("eos","usdt"))
-        # logger.debug(binance_coroutine.place_order("eosusdt", "buy", "LIMIT", 3.4, 3.011))
+        # logger.debug(binance_coroutine.place_order("eosusdt", "buy", "LIMIT", 1, 3.7, test_mode=True))
         # logger.info(binance_coroutine.get_account_balance("eos","usdt"))
         
         
