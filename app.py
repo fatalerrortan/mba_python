@@ -79,18 +79,23 @@ if __name__ == '__main__':
         else:
                 redis.set('exec_mode', 'production')
                 
-                huobi_account_info = huobi_coroutine.get_account_balance(config['MODE']['currency_code'], "usdt")
-                HUOBI_CURRENCY_AMOUNT = huobi_account_info['eos']['balance']
-                HUOBI_USDT_AMOUNT = huobi_account_info['usdt']['balance']        
+                try:
+                        huobi_account_info = huobi_coroutine.get_account_balance(config['MODE']['currency_code'], "usdt")
+                        HUOBI_CURRENCY_AMOUNT = huobi_account_info[config['MODE']['currency_code']]['balance']
+                        HUOBI_USDT_AMOUNT = huobi_account_info['usdt']['balance']        
 
-                binance_account_info = binance_coroutine.get_account_balance(config['MODE']['currency_code'], "usdt")
-                BINANCE_CURRENCY_AMOUNT = binance_account_info['eos']['free']
-                BINANCE_USDT_AMOUNT = binance_account_info['usdt']['free']
+                        binance_account_info = binance_coroutine.get_account_balance(config['MODE']['currency_code'], "usdt")
+                        BINANCE_CURRENCY_AMOUNT = binance_account_info[config['MODE']['currency_code']]['free']
+                        BINANCE_USDT_AMOUNT = binance_account_info['usdt']['free']
 
-                redis.set('huobi_currency_amount', HUOBI_CURRENCY_AMOUNT)  
-                redis.set('huobi_usdt_amount', HUOBI_USDT_AMOUNT)
-                redis.set('binance_currency_amount', BINANCE_CURRENCY_AMOUNT)  
-                redis.set('binance_usdt_amount', BINANCE_USDT_AMOUNT)
+                        redis.set('huobi_currency_amount', HUOBI_CURRENCY_AMOUNT)  
+                        redis.set('huobi_usdt_amount', HUOBI_USDT_AMOUNT)
+                        redis.set('binance_currency_amount', BINANCE_CURRENCY_AMOUNT)  
+                        redis.set('binance_usdt_amount', BINANCE_USDT_AMOUNT)
+                except Exception:
+                        logger.critical("cannot get account info")
+                        raise
+                        
 
         table = PrettyTable()
         table.field_names = ["Platforms", config['MODE']['currency_code'].upper(), "USDT"]
@@ -102,11 +107,11 @@ if __name__ == '__main__':
 
         signal.signal(signal.SIGINT, freq_analyser.write_to_csv)
 
-        asyncio.get_event_loop().run_until_complete(asyncio.gather(
-                huobi_coroutine.fetch_subscription(sub=HUOBI_TOPIC_MARKET_DEPTH),
-                binance_coroutine.fetch_subscription(),
-                core_coroutine.bricks_checking()
-                ))
+        # asyncio.get_event_loop().run_until_complete(asyncio.gather(
+        #         huobi_coroutine.fetch_subscription(sub=HUOBI_TOPIC_MARKET_DEPTH),
+        #         binance_coroutine.fetch_subscription(),
+        #         core_coroutine.bricks_checking()
+        #         ))
 
         # .................. testing ..........................................       
 

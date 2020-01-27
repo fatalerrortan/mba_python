@@ -90,6 +90,7 @@ class Core():
                         try:  
                             a_sell_result = trade_handler[a_market]('sell', a_max_bid, available_trade_amount)
                             if a_sell_result:
+                                self.account_update()
                                 self._print_on_terminal('sell', a, available_trade_amount, render_type='trade_operation')
                                 try:
                                     b_buy_result = trade_handler[b_market]('buy', b_min_ask, available_trade_amount)
@@ -192,6 +193,20 @@ class Core():
                 else:
                     return Binance.place_order("eosusdt", "buy", "LIMIT", amount, price)
     
+    async def account_update(self):
+        huobi_account = Huobi.get_account_balance(config['MODE']['currency_code'], "usdt")
+        HUOBI_CURRENCY_AMOUNT = huobi_account['eos']['balance']
+        HUOBI_USDT_AMOUNT = huobi_account['usdt']['balance']  
+        
+        binance_account = Binance.get_account_balance(config['MODE']['currency_code'], "usdt")
+        BINANCE_CURRENCY_AMOUNT = binance_account['eos']['free']
+        BINANCE_USDT_AMOUNT = binance_account['usdt']['free']
+
+        redis.set('huobi_currency_amount', HUOBI_CURRENCY_AMOUNT)  
+        redis.set('huobi_usdt_amount', HUOBI_USDT_AMOUNT)
+        redis.set('binance_currency_amount', BINANCE_CURRENCY_AMOUNT)  
+        redis.set('binance_usdt_amount', BINANCE_USDT_AMOUNT)
+
     def _get_max_trade_amount(self, margin: float):
         rules = self.trade_rule_json
         for label, rule in rules.items():

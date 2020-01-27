@@ -71,3 +71,43 @@
 |   HUOBI   | 42.0 | 280.0 |
 |  BINANCE  | 42.0 | 280.0 |
 +-----------+------+-------+
+2020-01-27 23:31:19,263 / INFO / root / >>> TanMba is running <<<
+2020-01-27 23:31:19,274 / INFO / root / 
++-----------+------+-------+
+| Platforms | ETH  |  USDT |
++-----------+------+-------+
+|   HUOBI   | 42.0 | 280.0 |
+|  BINANCE  | 42.0 | 280.0 |
++-----------+------+-------+
+2020-01-27 23:31:46,953 / INFO / root / >>> TanMba is running <<<
+2020-01-27 23:31:46,955 / CRITICAL / root / cannot get account info
+2020-01-27 23:33:33,149 / INFO / root / >>> TanMba is running <<<
+2020-01-27 23:33:33,152 / CRITICAL / root / cannot get account info
+2020-01-27 23:35:30,906 / INFO / root / >>> TanMba is running <<<
+2020-01-27 23:35:30,908 / CRITICAL / root / cannot get account info
+2020-01-27 23:37:31,580 / INFO / root / >>> TanMba is running <<<
+2020-01-27 23:37:31,582 / CRITICAL / root / cannot get account info
+2020-01-27 23:39:32,554 / INFO / root / >>> TanMba is running <<<
+2020-01-27 23:39:32,557 / CRITICAL / root / cannot get account info
+2020-01-27 23:42:08,828 / INFO / root / >>> TanMba is running <<<
+2020-01-27 23:42:11,382 / CRITICAL / root / cannot get account info
+2020-01-27 23:42:51,383 / INFO / root / >>> TanMba is running <<<
+2020-01-27 23:42:52,116 / CRITICAL / root / cannot get account info
+2020-01-27 23:44:46,459 / INFO / root / >>> TanMba is running <<<
+2020-01-27 23:44:47,284 / CRITICAL / root / cannot get account info
+2020-01-27 23:45:29,203 / INFO / root / >>> TanMba is running <<<
+2020-01-27 23:45:30,414 / INFO / root / 
++-----------+-----+------------+
+| Platforms | ETH |    USDT    |
++-----------+-----+------------+
+|   HUOBI   | 0.0 | 9.72044542 |
+|  BINANCE  | 0.0 |  2.76362   |
++-----------+-----+------------+
+2020-01-27 23:45:42,987 / INFO / root / >>> TanMba is running <<<
+2020-01-27 23:45:47,941 / INFO / root / 
++-----------+--------+------------+
+| Platforms |  EOS   |    USDT    |
++-----------+--------+------------+
+|   HUOBI   | 0.1994 | 9.72044542 |
+|  BINANCE  | 3.3966 |  2.76362   |
++-----------+--------+------------+
