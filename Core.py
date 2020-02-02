@@ -1,6 +1,5 @@
 import asyncio
 from datetime import datetime
-from colr import Colr as C
 import traceback
 import json
 from prettytable import PrettyTable
@@ -35,19 +34,19 @@ class Core():
         # compare the records of selected platforms 
         while True:
             await asyncio.sleep(1)
+
             try:
                 huobi_record = json.loads(self._redis.get('huobi'))
                 binance_record = json.loads(self._redis.get('binance'))
+                self._print_on_terminal(huobi_record, binance_record, None, render_type='normal')
             except Exception:
+                self.logger.warning("cannot retrieve current bid and sell records from redis")
                 self.logger.warning(Exception)
                 continue
-            self._print_on_terminal(huobi_record, binance_record, None, render_type='normal')
-            try:
-                self._is_profitable(huobi_record, binance_record)
-                self._is_profitable(binance_record, huobi_record)
+            
+            self._is_profitable(huobi_record, binance_record)
+            self._is_profitable(binance_record, huobi_record)
 
-            except Exception:
-                self.logger.error(Exception)
     
     def _is_profitable(self, a: json, b: json):
 
@@ -73,8 +72,12 @@ class Core():
             
             if not round(margin, 4) == 0:
                 self.freq_analyser.set_freq(round(margin, 4)) 
-
-                rule_label, trade_rate, MAX_TRADE_AMOUNT = self._get_max_trade_amount(margin)
+                try:
+                    rule_label, trade_rate, MAX_TRADE_AMOUNT = self._get_max_trade_amount(margin)
+                except Exception:
+                    self.logger.critical("cannot get max trade amount, it could be caused by reading undefined trade rule rules/testing.json")
+                    self.logger.critical(Exception)
+                    raise
 
                 if MAX_TRADE_AMOUNT:
                     if available_trade_amount > MAX_TRADE_AMOUNT:
@@ -83,29 +86,33 @@ class Core():
                     self._print_on_terminal(a, b, available_trade_amount, render_type='trade_event')
                     self._print_on_terminal(margin, rule_label, trade_rate, render_type='trade_rule')
 
-                    a_pre_result = trade_handler[a_market]('sell', a_max_bid, available_trade_amount, advance_mode=True)
-                    b_pre_result = trade_handler[b_market]('buy', b_min_ask, available_trade_amount, advance_mode=True)
+                    try:
+                        a_pre_result = trade_handler[a_market]('sell', a_max_bid, available_trade_amount, advance_mode=True)
+                        b_pre_result = trade_handler[b_market]('buy', b_min_ask, available_trade_amount, advance_mode=True)
+                    except Exception:
+                        self.logger.critical("transaction pre check mode failed")
+                        self.logger.critical(Exception)
+                        raise   
 
                     if a_pre_result and b_pre_result:
-                        try:  
-                            a_sell_result = trade_handler[a_market]('sell', a_max_bid, available_trade_amount)
-                            if a_sell_result:
-                                self.account_update()
-                                self._print_on_terminal('sell', a, available_trade_amount, render_type='trade_operation')
-                                try:
-                                    b_buy_result = trade_handler[b_market]('buy', b_min_ask, available_trade_amount)
-                                except Exception:
-                                    self.logger.warning(Exception)
-                                if b_buy_result:
-                                    self._print_on_terminal('buy', b, available_trade_amount, render_type='trade_operation')
-                                else:
-                                    self._print_on_terminal(b_market, None, None, render_type='continue')       
+                        a_sell_result = trade_handler[a_market]('sell', a_max_bid, available_trade_amount)
+                        if a_sell_result:
+                            self._print_on_terminal('sell', a, available_trade_amount, render_type='trade_operation')
+                            b_buy_result = trade_handler[b_market]('buy', b_min_ask, available_trade_amount)
+                            if b_buy_result:
+                                self._print_on_terminal('buy', b, available_trade_amount, render_type='trade_operation')
                             else:
-                                self._print_on_terminal(a_market, None, None, render_type='continue')  
-                        
-                            self._print_on_terminal(None, None, None, render_type='status')                               
-                        except Exception:
-                            self.logger.warning(Exception)
+                                self._print_on_terminal(b_market, None, None, render_type='continue')
+                            try:
+                                if not self._redis.get('exec_mode') == b'simulation':
+                                    self.account_update()
+                            except Exception:
+                                self.logger.critical("cannot update accout balance after transaction")
+                                self.logger.critical(Exception)
+                                raise
+                            self._print_on_terminal(None, None, None, render_type='status') 
+                        else:
+                            self._print_on_terminal(a_market, None, None, render_type='continue')                                 
                     else:
                         self._print_on_terminal(None, None, None, render_type='continue')                      
 
@@ -117,7 +124,7 @@ class Core():
             try:
                 trade_rule_json = json.load(trade_rule_file)[currency] 
             except KeyError:
-                self.logger.info('---> cannot find pre-defined trade rule, using default')    
+                self.logger.warning('cannot find pre-defined trade rule, using default')    
                 return self._get_trade_rules('default')
             return trade_rule_json    
 
@@ -193,7 +200,7 @@ class Core():
                 else:
                     return Binance.place_order("eosusdt", "buy", "LIMIT", amount, price)
     
-    async def account_update(self):
+    def account_update(self):
         huobi_account = Huobi.get_account_balance(config['MODE']['currency_code'], "usdt")
         HUOBI_CURRENCY_AMOUNT = huobi_account['eos']['balance']
         HUOBI_USDT_AMOUNT = huobi_account['usdt']['balance']  

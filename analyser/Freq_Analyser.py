@@ -1,6 +1,5 @@
 import csv
 import traceback
-from colr import Colr as C
 import os
 import logging
 

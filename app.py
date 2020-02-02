@@ -8,6 +8,8 @@ from prettytable import PrettyTable
 from analyser.Freq_Analyser import Freq_Analyser
 import signal
 import logging
+import datetime
+
 
 config = configparser.ConfigParser()
 config.read('./config_dev.ini')
@@ -47,7 +49,8 @@ sh = logging.StreamHandler()
 sh.setLevel(logging.DEBUG)
 sh.setFormatter(formatter)
 
-fh = logging.FileHandler("logs/core.log")
+dt = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+fh = logging.FileHandler("logs/{}_{}.log".format(dt, config['MODE']['currency_code']))
 fh.setLevel(logging.INFO)
 fh.setFormatter(formatter)
 
@@ -93,7 +96,8 @@ if __name__ == '__main__':
                         redis.set('binance_currency_amount', BINANCE_CURRENCY_AMOUNT)  
                         redis.set('binance_usdt_amount', BINANCE_USDT_AMOUNT)
                 except Exception:
-                        logger.critical("cannot get account info")
+                        logger.critical("cannot initialize accout balance")
+                        logger.critical(Exception)
                         raise
                         
 
@@ -107,25 +111,12 @@ if __name__ == '__main__':
 
         signal.signal(signal.SIGINT, freq_analyser.write_to_csv)
 
-        # asyncio.get_event_loop().run_until_complete(asyncio.gather(
-        #         huobi_coroutine.fetch_subscription(sub=HUOBI_TOPIC_MARKET_DEPTH),
-        #         binance_coroutine.fetch_subscription(),
-        #         core_coroutine.bricks_checking()
-        #         ))
+        asyncio.get_event_loop().run_until_complete(asyncio.gather(
+                huobi_coroutine.fetch_subscription(sub=HUOBI_TOPIC_MARKET_DEPTH),
+                binance_coroutine.fetch_subscription(),
+                core_coroutine.bricks_checking()
+                ))
 
-        # .................. testing ..........................................       
-
-        # test = huobi_coroutine.get_account_balance("eos", "usdt")
-        # test1 = huobi_coroutine.place_order(0.1, 6.11, "eosusdt", "sell-ioc")
-        # print(test1)
-        # test2 = huobi_coroutine.get_account_balance("eos", "usdt")
-        # print(test2)
-        
-        # on working!!!
-
-        # logger.info(binance_coroutine.get_account_balance("eos","usdt"))
-        # logger.debug(binance_coroutine.place_order("eosusdt", "buy", "LIMIT", 1, 3.7, test_mode=True))
-        # logger.info(binance_coroutine.get_account_balance("eos","usdt"))
         
         
         
