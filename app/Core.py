@@ -9,7 +9,7 @@ from platforms.Huobi import Huobi
 from platforms.Binance import Binance
 
 config = configparser.ConfigParser()
-config.read('./config_dev.ini')
+config.read('etc/config_dev.ini')
 
 HUOBI_CURRENCY_AMOUNT = float(config['HUOBI']['simulated_currency_amount'])
 BINANCE_CURRENCY_AMOUNT = float(config['BINANCE']['simulated_currency_amount'])

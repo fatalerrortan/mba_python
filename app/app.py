@@ -12,7 +12,7 @@ import datetime
 
 
 config = configparser.ConfigParser()
-config.read('./config_dev.ini')
+config.read('etc/config_dev.ini')
 
 EXEC_MODE = config['MODE']['mode']
 
