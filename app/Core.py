@@ -8,27 +8,16 @@ import logging
 from platforms.Huobi import Huobi
 from platforms.Binance import Binance
 
-config = configparser.ConfigParser()
-config.read('etc/config_dev.ini')
-
-HUOBI_CURRENCY_AMOUNT = float(config['HUOBI']['simulated_currency_amount'])
-BINANCE_CURRENCY_AMOUNT = float(config['BINANCE']['simulated_currency_amount'])
-INIT_TOTAL_CURRENCY_AMOUNT = HUOBI_CURRENCY_AMOUNT + BINANCE_CURRENCY_AMOUNT
-
-HUOBI_USDT_AMOUNT = float(config['HUOBI']['simulated_usdt_amount'])
-BINANCE_USDT_AMOUNT = float(config['BINANCE']['simulated_usdt_amount'])
-INIT_TOTAL_USDT_AMOUNT = HUOBI_USDT_AMOUNT + BINANCE_USDT_AMOUNT
-
-TRADE_RULE_FILE = config['RULE']['rule_file']
-
 class Core():
     def __init__(self, redis: object, currency: str, freq_analyser: object):
 
         self.logger = logging.getLogger("root.{}".format(__name__))
         self._redis = redis
         self.currency = (currency, '{} / usdt'.format(currency).upper())# param0: currency code; param1: curreny / usdt
+        self.currency_code = currency
         self.freq_analyser = freq_analyser
         self.trade_rule_json = self._get_trade_rules(currency)
+        self.show_off_account_status()
 
     async def bricks_checking(self):
         # compare the records of selected platforms 
@@ -47,7 +36,11 @@ class Core():
             self._is_profitable(huobi_record, binance_record)
             self._is_profitable(binance_record, huobi_record)
 
-    
+    async def show_off_account_status(self):
+        while True:
+            await asyncio.sleep(180)
+            self._print_on_terminal(None, None, None, render_type='status')
+
     def _is_profitable(self, a: json, b: json):
 
         trade_handler = {
@@ -82,25 +75,27 @@ class Core():
                 if MAX_TRADE_AMOUNT:
                     if available_trade_amount > MAX_TRADE_AMOUNT:
                         available_trade_amount = MAX_TRADE_AMOUNT
-                    
-                    self._print_on_terminal(a, b, available_trade_amount, render_type='trade_event')
-                    self._print_on_terminal(margin, rule_label, trade_rate, render_type='trade_rule')
-
+            
                     try:
-                        a_pre_result = trade_handler[a_market]('sell', a_max_bid, available_trade_amount, advance_mode=True)
-                        b_pre_result = trade_handler[b_market]('buy', b_min_ask, available_trade_amount, advance_mode=True)
+                        a_acceptable_amount = trade_handler[a_market]('sell', a_max_bid, available_trade_amount, advance_mode=True)
+                        # get the adjusted new a_new_amount(could be unchanged) and then pass the a_new_amount to the followd checker, namely trade_handler[b_market]
+                        if a_acceptable_amount:
+                            self._print_on_terminal(a, b, a_acceptable_amount, render_type='trade_event')
+                            self._print_on_terminal(margin, rule_label, trade_rate, render_type='trade_rule')
+                            b_acceptable_amount = trade_handler[b_market]('buy', b_min_ask, a_acceptable_amount, advance_mode=True)
+
                     except Exception:
                         self.logger.critical("transaction pre check mode failed")
                         self.logger.critical(Exception)
                         raise   
 
-                    if a_pre_result and b_pre_result:
-                        a_sell_result = trade_handler[a_market]('sell', a_max_bid, available_trade_amount)
+                    if a_acceptable_amount and b_acceptable_amount:
+                        a_sell_result = trade_handler[a_market]('sell', a_max_bid, a_acceptable_amount)
                         if a_sell_result:
-                            self._print_on_terminal('sell', a, available_trade_amount, render_type='trade_operation')
-                            b_buy_result = trade_handler[b_market]('buy', b_min_ask, available_trade_amount)
+                            self._print_on_terminal('sell', a, a_acceptable_amount, render_type='trade_operation')
+                            b_buy_result = trade_handler[b_market]('buy', b_min_ask, b_acceptable_amount)
                             if b_buy_result:
-                                self._print_on_terminal('buy', b, available_trade_amount, render_type='trade_operation')
+                                self._print_on_terminal('buy', b, b_acceptable_amount, render_type='trade_operation')
                             else:
                                 self._print_on_terminal(b_market, None, None, render_type='continue')
                             try:
@@ -120,6 +115,7 @@ class Core():
         return 0
     
     def _get_trade_rules(self, currency):
+        TRADE_RULE_FILE = self._redis.get("trade_rule_file").decode("utf-8")
         with open('rules/{}'.format(TRADE_RULE_FILE)) as trade_rule_file:
             try:
                 trade_rule_json = json.load(trade_rule_file)[currency] 
@@ -139,30 +135,35 @@ class Core():
             new_usdt_amount = float(self._redis.get('huobi_usdt_amount')) + amount * price
             if advance_mode:
                 if new_currency_amount >= 0 and new_usdt_amount >= 0:
-                    return True
-                else: return None
+                    return amount
+                else: 
+                    new_order_size = price * float(self._redis.get('huobi_currency_amount'))
+                    if new_order_size <= 10:
+                        return None
+                    else: return float(self._redis.get('huobi_currency_amount'))
             else:
                 if self._redis.get('exec_mode') == b'simulation':
                     self._redis.set('huobi_currency_amount', new_currency_amount)
                     self._redis.set('huobi_usdt_amount', new_usdt_amount)
                     return True
                 else:
-                    return Huobi.place_order(amount, price, "eosusdt", "sell-ioc")
+                    return Huobi.place_order(amount, price, self.currency_code+"usdt", "sell-ioc")
 
         if operation == 'buy':
             new_currency_amount = float(self._redis.get('huobi_currency_amount')) + amount
             new_usdt_amount = float(self._redis.get('huobi_usdt_amount')) - amount * price
             if advance_mode:
                 if new_currency_amount >= 0 and new_usdt_amount >= 0:
-                    return True
-                else: return None
+                    return amount
+                else: 
+                    return None
             else:
                 if self._redis.get('exec_mode') == b'simulation':
                     self._redis.set('huobi_currency_amount', new_currency_amount)
                     self._redis.set('huobi_usdt_amount', new_usdt_amount)
                     return True
                 else:
-                    return Huobi.place_order(amount, price, "eosusdt", "buy-ioc")
+                    return Huobi.place_order(amount, price, self.currency_code+"usdt", "buy-ioc")
 
     def _binance_trade_handler(self, operation: str, price: float, amount: float, advance_mode=None):
         
@@ -175,22 +176,26 @@ class Core():
             new_usdt_amount = float(self._redis.get('binance_usdt_amount')) + amount * price
             if advance_mode:
                 if new_currency_amount >= 0 and new_usdt_amount >= 0:
-                    return True
-                else: return None
+                    return amount
+                else: 
+                    new_order_size = price * float(self._redis.get('binance_currency_amount'))
+                    if new_order_size <= 10:
+                        return None
+                    else: return float(self._redis.get('binance_currency_amount'))                
             else:
                 if self._redis.get('exec_mode') == b'simulation':
                     self._redis.set('binance_currency_amount', new_currency_amount)
                     self._redis.set('binance_usdt_amount', new_usdt_amount)
                     return True
                 else:
-                    return Binance.place_order("eosusdt", "sell", "LIMIT", amount, price)
+                    return Binance.place_order(self.currency_code+"usdt", "sell", "LIMIT", amount, price)
 
         if operation == 'buy':
             new_currency_amount = float(self._redis.get('binance_currency_amount')) + amount
             new_usdt_amount = float(self._redis.get('binance_usdt_amount')) - amount * price
             if advance_mode:
                 if new_currency_amount >= 0 and new_usdt_amount >= 0:
-                    return True
+                    return amount
                 else: return None
             else:
                 if self._redis.get('exec_mode') == b'simulation':
@@ -198,27 +203,30 @@ class Core():
                     self._redis.set('binance_usdt_amount', new_usdt_amount)
                     return True
                 else:
-                    return Binance.place_order("eosusdt", "buy", "LIMIT", amount, price)
+                    return Binance.place_order(self.currency_code+"usdt", "buy", "LIMIT", amount, price)
     
     def account_update(self):
-        huobi_account = Huobi.get_account_balance(config['MODE']['currency_code'], "usdt")
+       
+        huobi_account = Huobi.get_account_balance(self.currency_code, "usdt")
         HUOBI_CURRENCY_AMOUNT = huobi_account['eos']['balance']
         HUOBI_USDT_AMOUNT = huobi_account['usdt']['balance']  
         
-        binance_account = Binance.get_account_balance(config['MODE']['currency_code'], "usdt")
+        binance_account = Binance.get_account_balance(self.currency_code, "usdt")
         BINANCE_CURRENCY_AMOUNT = binance_account['eos']['free']
         BINANCE_USDT_AMOUNT = binance_account['usdt']['free']
 
-        redis.set('huobi_currency_amount', HUOBI_CURRENCY_AMOUNT)  
-        redis.set('huobi_usdt_amount', HUOBI_USDT_AMOUNT)
-        redis.set('binance_currency_amount', BINANCE_CURRENCY_AMOUNT)  
-        redis.set('binance_usdt_amount', BINANCE_USDT_AMOUNT)
+        self._redis.set('huobi_currency_amount', HUOBI_CURRENCY_AMOUNT)  
+        self._redis.set('huobi_usdt_amount', HUOBI_USDT_AMOUNT)
+        self._redis.set('binance_currency_amount', BINANCE_CURRENCY_AMOUNT)  
+        self._redis.set('binance_usdt_amount', BINANCE_USDT_AMOUNT)
 
     def _get_max_trade_amount(self, margin: float):
+
         rules = self.trade_rule_json
+        current_total_curreny_amount = float(self._redis.get('huobi_currency_amount'))+ float(self._redis.get('binance_currency_amount'))
         for label, rule in rules.items():
             if float(rule['from']) <= margin < float(rule['to']):
-                return (label, rule['rate'], float(rule['rate']) * INIT_TOTAL_CURRENCY_AMOUNT)
+                return (label, rule['rate'], float(rule['rate']) * current_total_curreny_amount)
         return (None, None, None)       
 
     def _print_on_terminal(self, *data, render_type='normal'):
@@ -269,10 +277,10 @@ class Core():
                 table.add_row(["BINANCE", round(float(self._redis.get('binance_currency_amount')), 20), round(float(self._redis.get('binance_usdt_amount')), 20)])
                 self.logger.info("{}{}".format("\r\n", table))
                 
-                currency_profit = float(self._redis.get('huobi_currency_amount')) + float(self._redis.get('binance_currency_amount')) - INIT_TOTAL_CURRENCY_AMOUNT
-                usdt_profit = float(self._redis.get('huobi_usdt_amount')) + float(self._redis.get('binance_usdt_amount')) - INIT_TOTAL_USDT_AMOUNT
+                currency_profit = float(self._redis.get('huobi_currency_amount')) + float(self._redis.get('binance_currency_amount')) - float(self._redis.get("init_total_curreny_amount"))
+                usdt_profit = float(self._redis.get('huobi_usdt_amount')) + float(self._redis.get('binance_usdt_amount')) - float(self._redis.get("init_total_usdt_amount"))
                 msg = '\r\n---> initial {} amount / profit: {} / {:.20f} <--- \r\n---> initial usdt amount / profit: {} / {:.20f} <---'.\
-                    format(self.currency[0], INIT_TOTAL_CURRENCY_AMOUNT, currency_profit, INIT_TOTAL_USDT_AMOUNT, usdt_profit)
+                    format(self.currency[0], self._redis.get("init_total_curreny_amount").decode("utf-8"), currency_profit, self._redis.get("init_total_usdt_amount").decode("utf-8"), usdt_profit)
               
                 self.logger.info(msg)
             else:
