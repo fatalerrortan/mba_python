@@ -10,6 +10,7 @@ import signal
 import logging
 import datetime
 import sys
+import os
 
 currency_code = sys.argv[1]
  
@@ -23,6 +24,10 @@ sh.setLevel(logging.DEBUG)
 sh.setFormatter(formatter)
 
 dt = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+
+if not os.path.isdir("logs"):
+        os.makedirs("logs", os.umask(0))
+
 fh = logging.FileHandler("logs/{}_{}.log".format(dt, currency_code))
 fh.setLevel(logging.INFO)
 fh.setFormatter(formatter)
@@ -119,16 +124,19 @@ if __name__ == '__main__':
         table.add_row(["BINANCE", float(redis.get('binance_currency_amount')), float(redis.get('binance_usdt_amount'))])
 
         logger.info("{}{}".format("\r\n", table))
-
-        signal.signal(signal.SIGINT, freq_analyser.write_to_csv)
-
+        try:
+                signal.signal(signal.SIGINT, freq_analyser.write_to_csv)
+        except Exception:
+                logger.critical("cannot generate transaction statistic report")
+                logger.critical(Exception)   
+                raise       
         try:
 
-        asyncio.get_event_loop().run_until_complete(asyncio.gather(
-                huobi_coroutine.fetch_subscription(sub=HUOBI_TOPIC_MARKET_DEPTH),
-                binance_coroutine.fetch_subscription(),
-                core_coroutine.bricks_checking()
-                ))
+                asyncio.get_event_loop().run_until_complete(asyncio.gather(
+                        huobi_coroutine.fetch_subscription(sub=HUOBI_TOPIC_MARKET_DEPTH),
+                        binance_coroutine.fetch_subscription(),
+                        core_coroutine.bricks_checking()
+                        ))
 
         except Exception: 
                 logger.critical("capturing Top Level Error")
