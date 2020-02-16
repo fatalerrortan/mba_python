@@ -45,6 +45,7 @@ class Binance(Platform):
                     raw_respons = await ws.recv()
                     result = json.loads(raw_respons)                                     
                 except Exception:
+                    self.logger.warning("cannot retrieve trade info from Binance websocket")
                     self.logger.warning(Exception)
                     continue  
 
@@ -53,10 +54,10 @@ class Binance(Platform):
                     if max_bid == None or bid_amount == None: continue
                     min_ask, ask_amount = await self._get_min_ask(result['asks'])
                     if min_ask == None or ask_amount == None: continue
-                    # json_str = '{"max_bid": {}, "bid_amount": {}, "min_ask": {},ç "ask_amount": {}}'.format(max_bid, bid_amount, min_ask, ask_amount)
                     json_str = '{"market": "binance","max_bid": '+str(max_bid)+', "bid_amount": '+str(bid_amount)+',"min_ask": '+str(min_ask)+', "ask_amount": '+str(ask_amount)+'}'
                     self.redis.set('binance', json_str) 
                 except Exception:
+                    self.logger.warning("cannot extract max bid and min sell from retrieved Binance websocket return")
                     self.logger.warning(Exception)
                     continue                            
 
@@ -85,22 +86,17 @@ class Binance(Platform):
     def get_account_balance(self, *currency):
 
         request_url = self._prepare_request_data("/api/v3/account", {})
-        
-        try:
-            balances = requests.get(request_url, headers=self._headers).json()["balances"]
-        except Exception:
-            self.logger.error(Exception)
-            return None
-        
+        balances = requests.get(request_url, headers=self._headers).json()["balances"]
         result = {}
+        
         for balance in balances:
             if len(result) == 2: break
             if balance["asset"].lower() in currency:
                 result[balance["asset"].lower()] = balance
-
         return result
+
         
-    def place_order(self, symbol:str, side: str, type: str, quantity: float, price: float):
+    def place_order(self, symbol:str, side: str, type: str, quantity: float, price: float, test_mode=None):
         """
         symbol: currency name e.g. EOSUSDT
         side: trade direction e.g SELL
@@ -113,6 +109,8 @@ class Binance(Platform):
             - TAKE_PROFIT: trade with current market price if higher than a stop price 
             - TAKE_PROFIT_LIMIT: trade with specified price if higher than a stop price
         timeInForce：IOC - Immediate or Cancel 
+                     GTC - Good till cancel
+                     FOK - Fill or Kill
         """
         params = {
            "symbol": symbol.upper(),
@@ -124,13 +122,17 @@ class Binance(Platform):
            # "stopPrice": stop_price,
            "newOrderRespType": "RESULT"
         }
-
-        request_url = self._prepare_request_data("/api/v3/order", params)
-
+        endpoint = "/api/v3/order/test" if test_mode == True else "/api/v3/order"
+        request_url = self._prepare_request_data(endpoint, params)
+        # self.logger.debug(request_url)
         try:
-            balances = requests.get(request_url, headers=self._headers).json()
+            balances = requests.post(request_url, headers=self._headers).json()
+            if balances["orderId"]: 
+                return balances
+            else: return None
         except Exception:
-            self.logger.error(Exception)
+            self.logger.critical("cannot place Binance trade order")
+            self.logger.critical(Exception)
             return None
         
         return balances

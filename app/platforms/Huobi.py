@@ -48,6 +48,7 @@ class Huobi(Platform):
                     result = gzip.decompress(raw_respons).decode('utf-8')
                     
                 except Exception:
+                    self.logger.warning("cannot retrieve trade info from Huobi websocket")
                     self.logger.warning(Exception)
                     continue                             
                 if result[2:6] == 'ping':
@@ -58,15 +59,14 @@ class Huobi(Platform):
                     try:
                         result = json.loads(result).get('tick')
                         if not result: continue
-                        # result['ts'] = datetime.datetime.fromtimestamp(int(result['ts']/1000)).strftime('%Y-%m-%d %H:%M:%S')
                         max_bid, bid_amount = await self._get_max_bid(result['bids'])
                         if max_bid == None or bid_amount == None: continue
                         min_ask, ask_amount = await self._get_min_ask(result['asks'])
                         if min_ask == None or ask_amount == None: continue
-                        # json_str = '{"max_bid": {}, "bid_amount": {}, "min_ask": {}, "ask_amount": {}}'.format(max_bid, bid_amount, min_ask, ask_amount)
                         json_str = '{"market": "huobi","max_bid": '+str(max_bid)+', "bid_amount": '+str(bid_amount)+',"min_ask": '+str(min_ask)+', "ask_amount": '+str(ask_amount)+'}'                        
                         self.redis.set('huobi', json_str)                      
                     except Exception:
+                        self.logger.warning("cannot extract max bid and min sell from retrieved Huobi websocket return")
                         self.logger.warning(Exception)
                         continue    
 
@@ -156,13 +156,16 @@ class Huobi(Platform):
         }
 
         post_data = json.dumps(post_data)
-    
-        while True:
+
+        try:
             request_url = self._prepare_request_data("POST", "/v1/order/orders/place")
-            result = requests.post(request_url, post_data, headers=headers).json()
-            if result["status"] == "error" and result["err-code"] == "api-signature-not-valid":
-                continue
-            return result
+            if result["status"] == "ok":
+                return result
+            else: return None
+        except Exception:
+            self.logger.critical("cannot place Huobi trade order")
+            self.logger.critical(Exception)
+            return None
             
     def _prepare_request_data(self, post_method: str, uri: str, **params):
         request_params_dict = {

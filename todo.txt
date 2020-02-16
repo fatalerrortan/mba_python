@@ -1,0 +1,3 @@
+1. in order to meet the binance's requirement order_size > 10 USDT, I also wrote this logic directly into the huobi handler. 
+this is just a temporary solution. in the feature a trigger mechanism should be implemented. when the program realizes that 
+the binance is active in the current brick moving, the other members should load this logic automatically.
