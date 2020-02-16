@@ -12,13 +12,12 @@ class Freq_Analyser:
         self.freq_dict = {}
         self.freq_margin_list = []
         self.csv_file_path = 'data/{}.csv'.format(self.currency)
-
-        try:
-            self.__format_csv()
-        except Exception as e:
-            self.logger.error(Exception)
-
+        self.__format_csv()
+   
     def __format_csv(self):
+
+        if not os.path.isdir("data"):
+            os.makedirs("data", os.umask(0))
 
         if not os.path.isfile(self.csv_file_path):
             with open(self.csv_file_path, mode='w+') as csv_file:
