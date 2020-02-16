@@ -3,7 +3,6 @@ from datetime import datetime
 import traceback
 import json
 from prettytable import PrettyTable
-import configparser
 import logging
 from platforms.Huobi import Huobi
 from platforms.Binance import Binance
