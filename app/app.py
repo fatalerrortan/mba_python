@@ -13,6 +13,7 @@ import sys
 import os
 
 currency_code = sys.argv[1]
+exec_mode = sys.argv[2]
  
 logger = logging.getLogger("root")
 logger.setLevel(logging.DEBUG)
@@ -38,7 +39,6 @@ logger.addHandler(fh)
 config = configparser.ConfigParser()
 config.read('etc/{}.ini'.format(currency_code))
 
-EXEC_MODE = config['MODE']['mode']
 TRADE_RULE_FILE = config['RULE']['rule_file']
 CURRENCY_PAIR = currency_code + 'usdt'
 
@@ -81,7 +81,7 @@ if __name__ == '__main__':
         freq_analyser = Freq_Analyser(currency_code)
         core_coroutine = Core(redis, currency_code, freq_analyser) 
 
-        if EXEC_MODE == 'simulation':
+        if exec_mode == 'simulation':
 
                 redis.set('exec_mode', 'simulation')
 

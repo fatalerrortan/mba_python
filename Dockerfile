@@ -15,6 +15,8 @@ RUN apt update && \
     apt install -y python3-pip && \
     pip3 install -r requirements.txt && \
     # install redis server
-    apt install -y redis-server
+    apt install -y redis-server && \
+    # install vim editor
+    apt install -y vim
 
 ENTRYPOINT  ["/opt/entrypoint.sh"]
