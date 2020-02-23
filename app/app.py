@@ -11,10 +11,11 @@ import logging
 import datetime
 import sys
 import os
+import traceback
 
 currency_code = sys.argv[1]
 exec_mode = sys.argv[2]
- 
+
 logger = logging.getLogger("root")
 logger.setLevel(logging.DEBUG)
 
@@ -37,7 +38,9 @@ logger.addHandler(sh)
 logger.addHandler(fh)
 
 config = configparser.ConfigParser()
-config.read('etc/{}.ini'.format(currency_code))
+
+# config.read('etc/{}.ini'.format(currency_code))
+config.read('../etc/{}.ini'.format(currency_code))
 
 TRADE_RULE_FILE = config['RULE']['rule_file']
 CURRENCY_PAIR = currency_code + 'usdt'
@@ -72,9 +75,10 @@ if __name__ == '__main__':
                 redis = redis.Redis(host=REDIS_URL, port=REDIS_PORT, db=REDIS_INDEX)
                 redis.set('currency_code', currency_code)
                 redis.set('trade_rule_file', TRADE_RULE_FILE)
-        except Exception:
-                logger.critical(Exception)
-                raise Exception
+        except Exception as e:
+                logger.critical(getattr(e, 'message', repr(e)))
+                logger.critical(traceback.format_exc())
+                raise 
         
         binance_coroutine = Binance(BINANCE_WS_URL+BINANCE_STREAM, BINANCE_API_HOST, redis, BINANCE_API_KEY, BINANCE_SECRET_KEY)
         huobi_coroutine = Huobi(HUOBI_WS_URL, HUOBI_API_HOST, redis, HUOBI_API_KEY, HUOBI_SECRET_KEY)    
@@ -109,9 +113,10 @@ if __name__ == '__main__':
                         redis.set('binance_currency_amount', BINANCE_CURRENCY_AMOUNT)  
                         redis.set('binance_usdt_amount', BINANCE_USDT_AMOUNT)
 
-                except Exception:
+                except Exception as e:
                         logger.critical("cannot initialize accout balance")
-                        logger.critical(Exception)
+                        logger.critical(getattr(e, 'message', repr(e)))
+                        logger.critical(traceback.format_exc())
                         raise
         
         redis.set('init_total_curreny_amount', float(HUOBI_CURRENCY_AMOUNT) + float(BINANCE_CURRENCY_AMOUNT))
@@ -126,25 +131,30 @@ if __name__ == '__main__':
         logger.info("{}{}".format("\r\n", table))
         try:
                 signal.signal(signal.SIGINT, freq_analyser.write_to_csv)
-        except Exception:
+        except Exception as e:
                 logger.critical("cannot generate transaction statistic report")
-                logger.critical(Exception)   
+                logger.critical(getattr(e, 'message', repr(e)))
+                logger.critical(traceback.format_exc())   
                 raise       
         try:
-
                 asyncio.get_event_loop().run_until_complete(asyncio.gather(
-                        huobi_coroutine.fetch_subscription(sub=HUOBI_TOPIC_MARKET_DEPTH),
-                        binance_coroutine.fetch_subscription(),
+                        huobi_coroutine.fetch_subscription(currency_code+"usdt", "step0"),
+                        binance_coroutine.fetch_subscription(currency_code.upper()+"USDT"),
                         core_coroutine.bricks_checking()
                         ))
-
-        except Exception: 
+        except Exception as e: 
                 logger.critical("capturing Top Level Error")
-                logger.critical(Exception)
+                logger.critical(getattr(e, 'message', repr(e)))
+                logger.critical(traceback.format_exc())
                 raise
                 
         
+
+
+
+
+
         
-        
-   
-        
+
+
+

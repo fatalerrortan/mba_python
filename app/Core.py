@@ -17,7 +17,7 @@ class Core():
         self.currency_code = currency
         self.freq_analyser = freq_analyser
         self.trade_rule_json = self._get_trade_rules(currency)
-        self.show_off_account_status()
+        # self.show_off_account_status()
 
     async def bricks_checking(self):
         # compare the records of selected platforms 
@@ -28,9 +28,10 @@ class Core():
                 huobi_record = json.loads(self._redis.get('huobi'))
                 binance_record = json.loads(self._redis.get('binance'))
                 self._print_on_terminal(huobi_record, binance_record, None, render_type='normal')
-            except Exception:
+            except Exception as e:
                 self.logger.warning("cannot retrieve current bid and sell records from redis")
-                self.logger.warning(Exception)
+                self.logger.critical(getattr(e, 'message', repr(e)))
+                self.logger.critical(traceback.format_exc())
                 continue
             
             self._is_profitable(huobi_record, binance_record)
@@ -67,9 +68,10 @@ class Core():
                 self.freq_analyser.set_freq(round(margin, 4)) 
                 try:
                     rule_label, trade_rate, MAX_TRADE_AMOUNT = self._get_max_trade_amount(margin)
-                except Exception:
+                except Exception as e:
                     self.logger.critical("cannot get max trade amount, it could be caused by reading undefined trade rule rules/testing.json")
-                    self.logger.critical(Exception)
+                    self.logger.critical(getattr(e, 'message', repr(e)))
+                    self.logger.critical(traceback.format_exc())
                     raise
 
                 if MAX_TRADE_AMOUNT:
@@ -84,9 +86,10 @@ class Core():
                             self._print_on_terminal(margin, rule_label, trade_rate, render_type='trade_rule')
                             b_acceptable_amount = trade_handler[b_market]('buy', b_min_ask, a_acceptable_amount, advance_mode=True)
 
-                    except Exception:
+                    except Exception as e:
                         self.logger.critical("transaction pre check mode failed")
-                        self.logger.critical(Exception)
+                        self.logger.critical(getattr(e, 'message', repr(e)))
+                        self.logger.critical(traceback.format_exc())
                         raise   
 
                     if a_acceptable_amount and b_acceptable_amount:
@@ -101,9 +104,10 @@ class Core():
                             try:
                                 if not self._redis.get('exec_mode') == b'simulation':
                                     self.account_update()
-                            except Exception:
+                            except Exception as e:
                                 self.logger.critical("cannot update accout balance after transaction")
-                                self.logger.critical(Exception)
+                                self.logger.critical(getattr(e, 'message', repr(e)))
+                                self.logger.critical(traceback.format_exc())
                                 raise
                             self._print_on_terminal(None, None, None, render_type='status') 
                         else:

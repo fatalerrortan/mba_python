@@ -3,9 +3,8 @@ import asyncio
 import websockets
 import gzip
 import json
-import tracemalloc
-import datetime
 import traceback
+import datetime
 import urllib.parse
 import requests
 from datetime import datetime
@@ -14,8 +13,6 @@ import hmac
 import base64
 import time
 import logging
-
-tracemalloc.start()
 
 class Huobi(Platform):
  
@@ -29,10 +26,19 @@ class Huobi(Platform):
         self._api_key = api_key
         self._secret_key = bytes(secret_key, "utf-8")
         self._account_id = None
+        self.headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+        }
 
-    async def fetch_subscription(self, sub: str):
-        # subscribe  huobi market depth to get last bids and asks 
-        # response from huobi websocket is a json with cluster of the last bids and asks  
+    async def fetch_subscription_deprecated(self, sub: str):
+        """[summary] !deprecated! 
+        subscribe  huobi market depth to get last bids and asks 
+        response from huobi websocket is a json with cluster of the last bids and asks  
+        Arguments:
+            sub {str} -- [description]
+        """
+
         self.sub = sub
         async with websockets.connect(self._ws_url) as ws: 
             await ws.send(sub)  
@@ -47,9 +53,10 @@ class Huobi(Platform):
                     raw_respons = await ws.recv()
                     result = gzip.decompress(raw_respons).decode('utf-8')
                     
-                except Exception:
+                except Exception as e:
                     self.logger.warning("cannot retrieve trade info from Huobi websocket")
-                    self.logger.warning(Exception)
+                    self.logger.critical(getattr(e, 'message', repr(e)))
+                    self.logger.critical(traceback.format_exc())
                     continue                             
                 if result[2:6] == 'ping':
                     ping = str(json.loads(result).get('ping'))
@@ -65,10 +72,58 @@ class Huobi(Platform):
                         if min_ask == None or ask_amount == None: continue
                         json_str = '{"market": "huobi","max_bid": '+str(max_bid)+', "bid_amount": '+str(bid_amount)+',"min_ask": '+str(min_ask)+', "ask_amount": '+str(ask_amount)+'}'                        
                         self.redis.set('huobi', json_str)                      
-                    except Exception:
+                    except Exception as e:
                         self.logger.warning("cannot extract max bid and min sell from retrieved Huobi websocket return")
-                        self.logger.warning(Exception)
+                        self.logger.critical(getattr(e, 'message', repr(e)))
+                        self.logger.critical(traceback.format_exc())
                         continue    
+    
+    async def fetch_subscription(self, symbol: str, type: str):
+        """[summary]
+        
+        Arguments:
+            symbol {str} -- [description]
+            type {str} -- [description]
+        
+        Returns:
+            {
+                "status":"ok",
+                "ch":"market.eosusdt.depth.step0",
+                "ts":1582497341749,
+                "tick":{
+                    "bids":[
+                         [
+                            4.2931,
+                            497.5796
+                        ],
+                        ..............
+                    ],
+                    "asks":[],
+                    "ts":1582497341004,
+                    "version":103329167569
+                }
+            }
+        """
+        while True:
+            await asyncio.sleep(1)
+            try:
+                request_url = self._prepare_request_data("GET", "/market/depth", symbol=symbol, type=type)
+                raw_result = requests.get(request_url).json()
+                if not raw_result["status"] == "ok":
+                    self.logger.warning(raw_result)
+                else:
+                    max_bid = raw_result["tick"]["bids"][0][0]
+                    bid_amount = raw_result["tick"]["bids"][0][1]
+                    min_ask = raw_result["tick"]["asks"][0][0]
+                    ask_amount = raw_result["tick"]["asks"][0][1]
+
+                    json_str = '{"market": "huobi","max_bid": '+str(max_bid)+', "bid_amount": '+str(bid_amount)+',"min_ask": '+str(min_ask)+', "ask_amount": '+str(ask_amount)+'}'                        
+                    self.redis.set('huobi', json_str)                      
+            except Exception as e:
+                self.logger.warning("cannot extract max bid and min sell from retrieved Huobi API return")
+                self.logger.warning(getattr(e, 'message', repr(e)))
+                self.logger.warning(traceback.format_exc())
+                continue  
 
     async def _get_max_bid(self, bids: list):
         # get the highst bid price of the given bids cluster
@@ -106,6 +161,11 @@ class Huobi(Platform):
                 return result
 
     def get_account_balance(self, *currency):
+        """[summary]
+        
+        Returns:
+            {'eos': {'currency': 'eos', 'type': 'trade', 'balance': '0.1994'}, 'usdt': {'currency': 'usdt', 'type': 'trade', 'balance': '9.72044542'}}
+        """
 
         if not self._account_id:
             self.get_account_info()
@@ -137,14 +197,11 @@ class Huobi(Platform):
                 and any unfilled parts of the order are canceled.
 
                 4. buy(sell)-limit-maker: an order will be placed only when the offering bid price is lower than current lowest ask price.
+
+                response: {'status': 'ok', 'data': '720151'}
         """
         if not self._account_id:
             self.get_account_info()
-
-        headers = {
-            "Accept": "application/json",
-            "Content-Type": "application/json"
-        }
 
         post_data = {
             "account-id": str(self._account_id),
@@ -159,14 +216,63 @@ class Huobi(Platform):
 
         try:
             request_url = self._prepare_request_data("POST", "/v1/order/orders/place")
+            result = requests.post(request_url, post_data, headers=self.headers).json()
             if result["status"] == "ok":
                 return result
-            else: return None
-        except Exception:
-            self.logger.critical("cannot place Huobi trade order")
-            self.logger.critical(Exception)
+            else: 
+                self.logger.warning(result["err-msg"])
+                return None
+        except Exception as e:
+            self.logger.error("cannot place Huobi trade order")
+            self.logger.error(getattr(e, 'message', repr(e)))
+            self.logger.error(traceback.format_exc())
             return None
-            
+
+    def get_order_detail(self, order_id):
+        """[summary]
+        
+        Arguments:
+            order_id {int} -- [return from def place_order]
+        
+        Returns:
+            {
+                "status":"ok",
+                "data":{
+                "id":70913970151,
+                "symbol":"eosusdt",
+                "account-id":7230042,
+                "client-order-id":"",
+                "amount":"0.199400000000000000",
+                "price":"100.000000000000000000",
+                "created-at":1582403994120,
+                "type":"sell-limit",
+                "field-amount":"0.0",
+                "field-cash-amount":"0.0",
+                "field-fees":"0.0",
+                "finished-at":0,
+                "source":"api",
+                "state":"submitted", // placed order = "submitted" | filled order = "filled" | canceled order = "canceled"
+                "canceled-at":0
+                }
+            }
+        """
+        request_url = self._prepare_request_data("GET", "/v1/order/orders/{}".format(order_id))
+        raw_result = requests.get(request_url).json()
+        return raw_result
+    
+    def cancel_order(self, order_id):
+        """[summary]
+        
+        Arguments:
+            order_id {int} -- [description]
+        
+        Returns:
+            {'status': 'ok', 'data': '70913970151'} if sth get wrong, status = error
+        """
+        request_url = self._prepare_request_data("POST", "/v1/order/orders/{}/submitcancel".format(order_id))
+        raw_result = requests.post(request_url, headers=self.headers).json()
+        return raw_result
+
     def _prepare_request_data(self, post_method: str, uri: str, **params):
         request_params_dict = {
             "AccessKeyId": self._api_key,

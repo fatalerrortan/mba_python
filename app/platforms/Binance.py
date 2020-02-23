@@ -3,7 +3,6 @@ import asyncio
 import websockets
 import gzip
 import json
-import tracemalloc
 import time
 import traceback
 import requests
@@ -11,8 +10,6 @@ import hashlib
 import hmac
 import base64
 import logging 
-
-tracemalloc.start()
 
 class Binance(Platform):
 
@@ -29,37 +26,65 @@ class Binance(Platform):
             'X-MBX-APIKEY': self._api_key
         }
 
-    async def fetch_subscription(self):
-        # subscribe  binance market depth to get last bids and asks 
-        # response from huobi websocket is a json with cluster of the last bids and asks  
-        async with websockets.connect(self._ws_url) as ws: 
+    # async def fetch_subscription_deprecated(self):
+    #     """[summary] !deprecated! 
+    #         subscribe  binance market depth to get last bids and asks 
+    #         response from huobi websocket is a json with cluster of the last bids and asks  
+    #     """
+    #     async with websockets.connect(self._ws_url) as ws: 
 
-            while True:
+    #         while True:
 
-                if not ws.open:
-                    self.logger.warning("............... reconnecting to BINANCE websocket ...............")
-                    ws = await websockets.connect(self._ws_url)
-                    await ws.send()
+    #             if not ws.open:
+    #                 self.logger.warning("............... reconnecting to BINANCE websocket ...............")
+    #                 ws = await websockets.connect(self._ws_url)
+    #                 await ws.send()
 
-                try:
-                    raw_respons = await ws.recv()
-                    result = json.loads(raw_respons)                                     
-                except Exception:
-                    self.logger.warning("cannot retrieve trade info from Binance websocket")
-                    self.logger.warning(Exception)
-                    continue  
+    #             try:
+    #                 raw_respons = await ws.recv()
+    #                 result = json.loads(raw_respons)                                     
+    #             except Exception as e:
+    #                 self.logger.warning("cannot retrieve trade info from Binance websocket")
+    #                 self.logger.critical(getattr(e, 'message', repr(e)))
+    #                 self.logger.critical(traceback.format_exc())
+    #                 continue  
 
-                try:
-                    max_bid, bid_amount = await self._get_max_bid(result['bids'])
-                    if max_bid == None or bid_amount == None: continue
-                    min_ask, ask_amount = await self._get_min_ask(result['asks'])
-                    if min_ask == None or ask_amount == None: continue
-                    json_str = '{"market": "binance","max_bid": '+str(max_bid)+', "bid_amount": '+str(bid_amount)+',"min_ask": '+str(min_ask)+', "ask_amount": '+str(ask_amount)+'}'
+    #             try:
+    #                 max_bid, bid_amount = await self._get_max_bid(result['bids'])
+    #                 if max_bid == None or bid_amount == None: continue
+    #                 min_ask, ask_amount = await self._get_min_ask(result['asks'])
+    #                 if min_ask == None or ask_amount == None: continue
+    #                 json_str = '{"market": "binance","max_bid": '+str(max_bid)+', "bid_amount": '+str(bid_amount)+',"min_ask": '+str(min_ask)+', "ask_amount": '+str(ask_amount)+'}'
+    #                 self.redis.set('binance', json_str) 
+    #             except Exception as e:
+    #                 self.logger.warning("cannot extract max bid and min sell from retrieved Binance websocket return")
+    #                 self.logger.critical(getattr(e, 'message', repr(e)))
+    #                 self.logger.critical(traceback.format_exc())
+    #                 continue                            
+
+    async def fetch_subscription(self, symbol: str):
+        """[summary]
+        
+        Arguments:
+            symbol {str} -- [e.g. ETHUSDT]
+        
+        Returns:
+            {'symbol': 'ETHUSDT', 'bidPrice': '272.17000000', 'bidQty': '10.24386000', 'askPrice': '272.20000000', 'askQty': '13.98066000'}
+        """
+        while True:
+            await asyncio.sleep(1)
+            data = {"symbol": symbol.upper()}
+            request_url = self._prepare_request_data("/api/v3/ticker/bookTicker", None, data)
+            try:
+                result = requests.get(request_url, headers=self._headers).json()
+                if result["symbol"] == symbol.upper():
+                    json_str = '{"market": "binance","max_bid": '+result["bidPrice"]+', "bid_amount": '+result["bidQty"]+',"min_ask": '+result["askPrice"]+', "ask_amount": '+result["askQty"]+'}'
                     self.redis.set('binance', json_str) 
-                except Exception:
-                    self.logger.warning("cannot extract max bid and min sell from retrieved Binance websocket return")
-                    self.logger.warning(Exception)
-                    continue                            
+            except Exception as e:
+                self.logger.warning("cannot extract max bid and min ask from retrieved Binance api")
+                self.logger.warning(getattr(e, 'message', repr(e)))
+                self.logger.warning(traceback.format_exc())
+                continue
 
     async def _get_max_bid(self, bids: list):
         # get the highst bid price of the given bids cluster
@@ -84,8 +109,12 @@ class Binance(Platform):
         return min_ask, ask_amount
 
     def get_account_balance(self, *currency):
-
-        request_url = self._prepare_request_data("/api/v3/account", {})
+        """[summary]
+        
+        Returns:
+            {'eos': {'asset': 'EOS', 'free': '3.39660000', 'locked': '0.00000000'}, 'usdt': {'asset': 'USDT', 'free': '2.76362000', 'locked': '0.00000000'}}
+        """
+        request_url = self._prepare_request_data("/api/v3/account", "USER_DATA",{})
         balances = requests.get(request_url, headers=self._headers).json()["balances"]
         result = {}
         
@@ -96,7 +125,7 @@ class Binance(Platform):
         return result
 
         
-    def place_order(self, symbol:str, side: str, type: str, quantity: float, price: float, test_mode=None):
+    def place_order(self, symbol:str, side: str, type: str, quantity: float, price: float, time_in_force: str, test_mode=None):
         """
         symbol: currency name e.g. EOSUSDT
         side: trade direction e.g SELL
@@ -111,46 +140,145 @@ class Binance(Platform):
         timeInForce：IOC - Immediate or Cancel 
                      GTC - Good till cancel
                      FOK - Fill or Kill
+
+        Response:
+        {
+            "symbol":"EOSUSDT",
+            "orderId":493920127,
+            "orderListId":-1,
+            "clientOrderId":"efp3Eswf2LPjBQkdWniSAs",
+            "transactTime":1582492689366,
+            "price":"5.00000000",
+            "origQty":"3.00000000",
+            "executedQty":"0.00000000",
+            "cummulativeQuoteQty":"0.00000000",
+            "status":"EXPIRED",  {FILLED | NEW | EXPIRED(for FOK) | CANCELED}
+            "timeInForce":"FOK",
+            "type":"LIMIT",
+            "side":"SELL"
+        }             
         """
         params = {
            "symbol": symbol.upper(),
            "side": side.upper(),
            "type": type.upper(),
-           "timeInForce": "IOC",
+           "timeInForce": time_in_force.upper(),
            "quantity": quantity,
            "price": price,
            # "stopPrice": stop_price,
            "newOrderRespType": "RESULT"
         }
         endpoint = "/api/v3/order/test" if test_mode == True else "/api/v3/order"
-        request_url = self._prepare_request_data(endpoint, params)
-        # self.logger.debug(request_url)
+        request_url = self._prepare_request_data(endpoint, "TRADE", params)
         try:
-            balances = requests.post(request_url, headers=self._headers).json()
-            if balances["orderId"]: 
-                return balances
-            else: return None
-        except Exception:
-            self.logger.critical("cannot place Binance trade order")
-            self.logger.critical(Exception)
+            result = requests.post(request_url, headers=self._headers).json()
+            if "orderId" in result:
+                return result
+            else: 
+                self.logger.error(result)
+                return None
+        except Exception as e:
+            self.logger.error("cannot place Binance trade order")
+            self.logger.error(getattr(e, 'message', repr(e)))
+            self.logger.error(traceback.format_exc())
             return None
         
-        return balances
+        return result
 
-    def _prepare_request_data(self, uri: str, params: dict):
-        request_params_dict = {
-            "timestamp": int(time.time()*1000)
-        } 
-
-        if params:
-            request_params_dict = {**request_params_dict, **params}      
+    def get_order_detail(self, symbol: str, order_id: int):
+        """[summary]
         
-        request_params = ""
-        for key in sorted(request_params_dict.keys()):
-            request_params += "{}={}&".format(key,request_params_dict[key])
+        Arguments:
+            symbol {str} -- [description]
+            order_id {int} -- [description]
+        
+        Returns:
+            {
+                "symbol":"EOSUSDT",
+                "orderId":493920127,
+                "orderListId":-1,
+                "clientOrderId":"efp3Eswf2LPjBQkdWniSAs",
+                "price":"5.00000000",
+                "origQty":"3.00000000",
+                "executedQty":"0.00000000",
+                "cummulativeQuoteQty":"0.00000000",
+                "status":"EXPIRED",     {FILLED | NEW | EXPIRED(for FOK) | CANCELED}
+                "timeInForce":"FOK",
+                "type":"LIMIT",
+                "side":"SELL",
+                "stopPrice":"0.00000000",
+                "icebergQty":"0.00000000",
+                "time":1582492689366,
+                "updateTime":1582492689366,
+                "isWorking":True,
+                "origQuoteOrderQty":"0.00000000"
+            }
+        """
+        data = {
+                "symbol": symbol.upper(),
+                "orderId": order_id
+                }
+        request_url = self._prepare_request_data("/api/v3/order", "USER_DATA", data)
+        result = requests.get(request_url, headers=self._headers).json()
+        return result
 
-        signature = self._get_hmacSHA256_sigature(request_params[:-1])       
-        request_url = "{}{}?{}signature={}".format(self.api_host, uri, request_params, signature)
+    def cancel_order(self, symbol: str, order_id: int):
+        """[summary]
+        
+        Arguments:
+            symbol {str} -- [description]
+            order_id {int} -- [description]
+        
+        Returns:
+            {
+                "symbol":"EOSUSDT",
+                "orderId":493920127,
+                "orderListId":-1,
+                "clientOrderId":"efp3Eswf2LPjBQkdWniSAs",
+                "transactTime":1582492689366,
+                "price":"5.00000000",
+                "origQty":"3.00000000",
+                "executedQty":"0.00000000",
+                "cummulativeQuoteQty":"0.00000000",
+                "status":"EXPIRED",  {FILLED | NEW | EXPIRED(for FOK) | CANCELED}
+                "timeInForce":"FOK",
+                "type":"LIMIT",
+                "side":"SELL"
+            }       
+        """
+        data = {
+                "symbol": symbol.upper(),
+                "orderId": order_id
+                }
+        request_url = self._prepare_request_data("/api/v3/order", "TRADE", data)
+        result = requests.delete(request_url, headers=self._headers).json()
+        return result
+
+    def _prepare_request_data(self, uri: str, auth_type: str, params: dict):
+        
+        if not auth_type:
+            request_params = ""
+            if params:
+                request_params_dict = params
+            
+                for key in sorted(request_params_dict.keys()):
+                    request_params += "{}={}&".format(key,request_params_dict[key])
+            
+            request_url = "{}{}?{}".format(self.api_host, uri, request_params)
+        else:
+            request_params_dict = {
+                "timestamp": int(time.time()*1000)
+            } 
+
+            if params:
+                request_params_dict = {**request_params_dict, **params}      
+            
+            request_params = ""
+            for key in sorted(request_params_dict.keys()):
+                request_params += "{}={}&".format(key,request_params_dict[key])
+
+            signature = self._get_hmacSHA256_sigature(request_params[:-1])       
+            request_url = "{}{}?{}signature={}".format(self.api_host, uri, request_params, signature)
 
         return request_url
 
