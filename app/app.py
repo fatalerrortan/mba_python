@@ -39,8 +39,8 @@ logger.addHandler(fh)
 
 config = configparser.ConfigParser()
 
-# config.read('etc/{}.ini'.format(currency_code))
-config.read('../etc/{}.ini'.format(currency_code))
+config.read('etc/{}.ini'.format(currency_code))
+# config.read('../etc/{}.ini'.format(currency_code))
 
 TRADE_RULE_FILE = config['RULE']['rule_file']
 CURRENCY_PAIR = currency_code + 'usdt'
@@ -114,7 +114,7 @@ if __name__ == '__main__':
                         redis.set('binance_usdt_amount', BINANCE_USDT_AMOUNT)
 
                 except Exception as e:
-                        logger.critical("cannot initialize accout balance")
+                        logger.critical("ERROR: cannot initialize accout balance")
                         logger.critical(getattr(e, 'message', repr(e)))
                         logger.critical(traceback.format_exc())
                         raise
@@ -130,9 +130,9 @@ if __name__ == '__main__':
 
         logger.info("{}{}".format("\r\n", table))
         try:
-                signal.signal(signal.SIGINT, freq_analyser.write_to_csv)
+                signal.signal(signal.SIGINT, freq_analyser.write_to_csv_at_exit)
         except Exception as e:
-                logger.critical("cannot generate transaction statistic report")
+                logger.critical("ERROR: cannot generate transaction statistic report")
                 logger.critical(getattr(e, 'message', repr(e)))
                 logger.critical(traceback.format_exc())   
                 raise       
@@ -140,10 +140,11 @@ if __name__ == '__main__':
                 asyncio.get_event_loop().run_until_complete(asyncio.gather(
                         huobi_coroutine.fetch_subscription(currency_code+"usdt", "step0"),
                         binance_coroutine.fetch_subscription(currency_code.upper()+"USDT"),
-                        core_coroutine.bricks_checking()
+                        core_coroutine.bricks_checking(),
+                        freq_analyser.write_to_csv_periodically()
                         ))
         except Exception as e: 
-                logger.critical("capturing Top Level Error")
+                logger.critical("ERROR: capturing Top Level Error")
                 logger.critical(getattr(e, 'message', repr(e)))
                 logger.critical(traceback.format_exc())
                 raise

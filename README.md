@@ -16,6 +16,7 @@ an example we ship a container to handle eth
 docker run -it --name eth_container --network host -v host/dir/etc:/opt/app/etc fatalerrortxl/tanmba_test:f_real_transaction eth simulation
 ```
 - /host/dir/etc: use -v argument to declare the location where you put the etc folder of the repo root dir on your machine
+- --network: if running multiple containers for several crypto currencies, using bridge instead of host network
 - eth: crypo currency name you want to handle 
 - simulation: execution mode "simulation" OR "production"  
 

@@ -1,5 +1,6 @@
 import asyncio
 from datetime import datetime
+import time
 import traceback
 import json
 from prettytable import PrettyTable
@@ -7,6 +8,7 @@ import configparser
 import logging
 from platforms.Huobi import Huobi
 from platforms.Binance import Binance
+
 
 class Core():
     def __init__(self, redis: object, currency: str, freq_analyser: object):
@@ -29,7 +31,7 @@ class Core():
                 binance_record = json.loads(self._redis.get('binance'))
                 self._print_on_terminal(huobi_record, binance_record, None, render_type='normal')
             except Exception as e:
-                self.logger.warning("cannot retrieve current bid and sell records from redis")
+                self.logger.warning("ERROR: cannot retrieve current bid and sell records from redis")
                 self.logger.critical(getattr(e, 'message', repr(e)))
                 self.logger.critical(traceback.format_exc())
                 continue
@@ -69,7 +71,7 @@ class Core():
                 try:
                     rule_label, trade_rate, MAX_TRADE_AMOUNT = self._get_max_trade_amount(margin)
                 except Exception as e:
-                    self.logger.critical("cannot get max trade amount, it could be caused by reading undefined trade rule rules/testing.json")
+                    self.logger.critical("ERROR: cannot get max trade amount, it could be caused by reading undefined trade rule rules/testing.json")
                     self.logger.critical(getattr(e, 'message', repr(e)))
                     self.logger.critical(traceback.format_exc())
                     raise
@@ -87,7 +89,7 @@ class Core():
                             b_acceptable_amount = trade_handler[b_market]('buy', b_min_ask, a_acceptable_amount, advance_mode=True)
 
                     except Exception as e:
-                        self.logger.critical("transaction pre check mode failed")
+                        self.logger.critical("ERROR: transaction pre check mode failed")
                         self.logger.critical(getattr(e, 'message', repr(e)))
                         self.logger.critical(traceback.format_exc())
                         raise   
@@ -105,7 +107,7 @@ class Core():
                                 if not self._redis.get('exec_mode') == b'simulation':
                                     self.account_update()
                             except Exception as e:
-                                self.logger.critical("cannot update accout balance after transaction")
+                                self.logger.critical("ERROR: ERROR: cannot update accout balance after transaction")
                                 self.logger.critical(getattr(e, 'message', repr(e)))
                                 self.logger.critical(traceback.format_exc())
                                 raise
@@ -124,7 +126,7 @@ class Core():
             try:
                 trade_rule_json = json.load(trade_rule_file)[currency] 
             except KeyError:
-                self.logger.warning('cannot find pre-defined trade rule, using default')    
+                self.logger.warning('ERROR: cannot find pre-defined trade rule, using default')    
                 return self._get_trade_rules('default')
             return trade_rule_json    
 
@@ -151,8 +153,17 @@ class Core():
                     self._redis.set('huobi_usdt_amount', new_usdt_amount)
                     return True
                 else:
-                    return Huobi.place_order(amount, price, self.currency_code+"usdt", "sell-ioc")
-
+                    order_id = Huobi.place_order(amount, price, self.currency_code+"usdt", "sell-limt")
+                    if not order_id: return None
+                    
+                    time.sleep(1)
+                    order_status = Huobi.get_order_detail(order_id)
+                    if order_status == "filled":
+                        return amount
+                    else: 
+                        if Huobi.cancel_order(order_id) == "ok":
+                            return None
+                        
         if operation == 'buy':
             new_currency_amount = float(self._redis.get('huobi_currency_amount')) + amount
             new_usdt_amount = float(self._redis.get('huobi_usdt_amount')) - amount * price
@@ -167,7 +178,18 @@ class Core():
                     self._redis.set('huobi_usdt_amount', new_usdt_amount)
                     return True
                 else:
-                    return Huobi.place_order(amount, price, self.currency_code+"usdt", "buy-ioc")
+                    order_id = Huobi.place_order(amount, price, self.currency_code+"usdt", "buy-limt", force=True)
+                    retry = 0
+                    while retry < 33:
+                        time.sleep(1)
+                        order_status = Huobi.get_order_detail(order_id)
+                        if order_status == "filled":
+                            return amount
+                        retry += 1
+                    
+                    if Huobi.cancel_order(order_id) == "ok":
+                        return Huobi.place_order(amount, 0, self.currency_code+"usdt", "buy-market", force=True)
+                        
 
     def _binance_trade_handler(self, operation: str, price: float, amount: float, advance_mode=None):
         
@@ -192,7 +214,10 @@ class Core():
                     self._redis.set('binance_usdt_amount', new_usdt_amount)
                     return True
                 else:
-                    return Binance.place_order(self.currency_code+"usdt", "sell", "LIMIT", amount, price)
+                    result = Binance.place_order(self.currency_code+"usdt", "sell", "LIMIT", amount, price, "FOK")
+                    if result["status"] == "FILLED":
+                        return amount
+                    return None
 
         if operation == 'buy':
             new_currency_amount = float(self._redis.get('binance_currency_amount')) + amount
@@ -207,7 +232,23 @@ class Core():
                     self._redis.set('binance_usdt_amount', new_usdt_amount)
                     return True
                 else:
-                    return Binance.place_order(self.currency_code+"usdt", "buy", "LIMIT", amount, price)
+                    result = Binance.place_order(self.currency_code+"usdt", "buy", "LIMIT", amount, price, "GTC")
+                    if result["status"] == "FILLED":
+                        return amount
+                    elif result["status"] == "NEW":
+                        retry = 0
+                        while retry < 33:
+                            time.sleep(1)
+                            order_status = Binance.get_order_detail(self.currency_code+"usdt", result["orderId"])["status"]
+                            if order_status == "FILLED":
+                                return amount
+                            retry += 1
+
+                        order_status = Binance.cancel_order(self.currency_code+"usdt", result["orderId"])["status"]
+                        if order_status == "CANCELED":
+                            return Binance.place_order(self.currency_code+"usdt", "buy", "market", amount, 0, "GTC")
+                    else: return None
+                        
     
     def account_update(self):
        
