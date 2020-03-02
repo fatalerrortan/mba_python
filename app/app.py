@@ -15,6 +15,7 @@ import traceback
 
 currency_code = sys.argv[1]
 exec_mode = sys.argv[2]
+rule_file = sys.argv[3]
 
 logger = logging.getLogger("root")
 logger.setLevel(logging.DEBUG)
@@ -42,7 +43,6 @@ config = configparser.ConfigParser()
 config.read('etc/{}.ini'.format(currency_code))
 # config.read('../etc/{}.ini'.format(currency_code))
 
-TRADE_RULE_FILE = config['RULE']['rule_file']
 CURRENCY_PAIR = currency_code + 'usdt'
 
 HUOBI_WS_URL = config['HUOBI']['ws_url']
@@ -74,7 +74,7 @@ if __name__ == '__main__':
         try:
                 redis = redis.Redis(host=REDIS_URL, port=REDIS_PORT, db=REDIS_INDEX)
                 redis.set('currency_code', currency_code)
-                redis.set('trade_rule_file', TRADE_RULE_FILE)
+                redis.set('trade_rule_file', rule_file)
         except Exception as e:
                 logger.critical(getattr(e, 'message', repr(e)))
                 logger.critical(traceback.format_exc())
