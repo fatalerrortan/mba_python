@@ -13,12 +13,10 @@ import sys
 import os
 import traceback
 
-# currency_code = sys.argv[1]
-# exec_mode = sys.argv[2]
-
 currency_code = "eos"
 exec_mode = "simulation"
- 
+rule_file = "testing.json"
+
 logger = logging.getLogger("root")
 logger.setLevel(logging.DEBUG)
 
@@ -41,9 +39,10 @@ logger.addHandler(sh)
 logger.addHandler(fh)
 
 config = configparser.ConfigParser()
-# config.read('etc/{}.ini'.format(currency_code))
-config.read('../etc/{}.ini'.format(currency_code))
-TRADE_RULE_FILE = config['RULE']['rule_file']
+
+config.read('/Users/fatalerrortxl/Desktop/tanmba/etc/{}.ini'.format(currency_code))
+# config.read('../etc/{}.ini'.format(currency_code))
+
 CURRENCY_PAIR = currency_code + 'usdt'
 
 HUOBI_WS_URL = config['HUOBI']['ws_url']
@@ -75,7 +74,7 @@ if __name__ == '__main__':
         try:
                 redis = redis.Redis(host=REDIS_URL, port=REDIS_PORT, db=REDIS_INDEX)
                 redis.set('currency_code', currency_code)
-                redis.set('trade_rule_file', TRADE_RULE_FILE)
+                redis.set('trade_rule_file', rule_file)
         except Exception as e:
                 logger.critical(getattr(e, 'message', repr(e)))
                 logger.critical(traceback.format_exc())
@@ -87,6 +86,7 @@ if __name__ == '__main__':
         # core_coroutine = Core(redis, currency_code, freq_analyser) 
 
      
+        print(binance_coroutine.get_trade_precision("eth"))
         # result1 = huobi_coroutine.get_account_balance("eos", "usdt")
         # print(result1)
         # {'eos': {'currency': 'eos', 'type': 'trade', 'balance': '0.1994'}, 'usdt': {'currency': 'usdt', 'type': 'trade', 'balance': '9.72044542'}}
@@ -110,25 +110,28 @@ if __name__ == '__main__':
         # {'status': 'error', 'err-code': 'method-not-allowed', 'err-msg': "Request method 'GET' not supported", 'data': None}
         # {'status': 'ok', 'data': '70913970151'}
 
-        result5 = huobi_coroutine.fetch_subscription("eosusdt", "step0")
-        print(result5)
+        # result5 = huobi_coroutine.fetch_subscription("eosusdt", "step0")
+        # print(result5)
 
 # !!!!!!!!!!!!!!!! binance !!!!!!!!!!!!!!!!!
         # balance = binance_coroutine.get_account_balance("eos", "usdt")
         # print(balance)
 
-        # result1 = binance_coroutine.place_order("eosusdt", "buy", "limit", 5, 3, "GTC")
+        # result1 = binance_coroutine.place_order("eosusdt", "sell", "limit", 2.99, 3.618, "GTC")
         # print(result1)
         # order_id = result1["orderId"]
         # print(order_id)
 
-        # result2 = binance_coroutine.get_order_detail("eosusdt", 493945890)
+        # balance = binance_coroutine.get_account_balance("eos", "usdt")
+        # print(balance)
+
+        # result2 = binance_coroutine.get_order_detail("eosusdt", 520220791)
         # print(result2)
 
-        # result3 = binance_coroutine.cancel_order("eosusdt", 493945890)
+        # result3 = binance_coroutine.cancel_order("eosusdt", 520220791)
         # print(result3)
 
-        # result4 = binance_coroutine.get_order_detail("eosusdt", 493945890)
+        # result4 = binance_coroutine.get_order_detail("eosusdt", 520220791)
         # print(result4)
 
 

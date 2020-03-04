@@ -289,7 +289,23 @@ class Binance(Platform):
             self.logger.error(traceback.format_exc())
             time.sleep(1)
             return self.cancel_order(symbol, order_id)
-
+    
+    def get_trade_precision(self, currency: str):
+        request_url = self._prepare_request_data("/api/v3/exchangeInfo", None, {})
+        try:
+            symbols = requests.get(request_url, headers=self._headers).json()["symbols"]
+            symbol = currency.upper() + "USDT"
+            for item in symbols:
+                if item["symbol"] == symbol:
+                    minQty_lotsize = item["filters"][2]["minQty"]
+                    return minQty_lotsize
+            raise KeyError("ERROR: No lot size info of the given currency")
+        except Exception as e:
+            self.logger.critical("ERROR: cannot extract lot size precision from retrieved Binance api")
+            self.logger.critical(getattr(e, 'message', repr(e)))
+            self.logger.critical(traceback.format_exc())
+            raise
+            
     def _prepare_request_data(self, uri: str, auth_type: str, params: dict):
         
         if not auth_type:
