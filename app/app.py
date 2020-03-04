@@ -83,7 +83,7 @@ if __name__ == '__main__':
         binance_coroutine = Binance(BINANCE_WS_URL+BINANCE_STREAM, BINANCE_API_HOST, redis, BINANCE_API_KEY, BINANCE_SECRET_KEY)
         huobi_coroutine = Huobi(HUOBI_WS_URL, HUOBI_API_HOST, redis, HUOBI_API_KEY, HUOBI_SECRET_KEY)    
         freq_analyser = Freq_Analyser(currency_code)
-        core_coroutine = Core(redis, currency_code, freq_analyser) 
+        core_coroutine = Core(redis, currency_code, freq_analyser, huobi=huobi_coroutine, binance=binance_coroutine) 
 
         if exec_mode == 'simulation':
 

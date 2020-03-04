@@ -6,12 +6,9 @@ import json
 from prettytable import PrettyTable
 import configparser
 import logging
-from platforms.Huobi import Huobi
-from platforms.Binance import Binance
-
 
 class Core():
-    def __init__(self, redis: object, currency: str, freq_analyser: object):
+    def __init__(self, redis: object, currency: str, freq_analyser: object, huobi=huobi, binance=binance):
 
         self.logger = logging.getLogger("root.{}".format(__name__))
         self._redis = redis
@@ -19,6 +16,8 @@ class Core():
         self.currency_code = currency
         self.freq_analyser = freq_analyser
         self.trade_rule_json = self._get_trade_rules(currency)
+        self.huobi = huobi
+        self.binance = binance
         # self.show_off_account_status()
 
     async def bricks_checking(self):
@@ -183,15 +182,15 @@ class Core():
                     self._redis.set('huobi_usdt_amount', new_usdt_amount)
                     return True
                 else:
-                    order_id = Huobi.place_order(amount, price, self.currency_code+"usdt", "sell-limt")
+                    order_id = self.huobi.place_order(amount, price, self.currency_code+"usdt", "sell-limt")
                     if not order_id: return None
                     
                     time.sleep(1)
-                    order_status = Huobi.get_order_detail(order_id)
+                    order_status = self.huobi.get_order_detail(order_id)
                     if order_status == "filled":
                         return amount
                     else: 
-                        if Huobi.cancel_order(order_id) == "ok":
+                        if self.huobi.cancel_order(order_id) == "ok":
                             return None
                         
         if operation == 'buy':
@@ -208,17 +207,17 @@ class Core():
                     self._redis.set('huobi_usdt_amount', new_usdt_amount)
                     return True
                 else:
-                    order_id = Huobi.place_order(amount, price, self.currency_code+"usdt", "buy-limt", force=True)
+                    order_id = self.huobi.place_order(amount, price, self.currency_code+"usdt", "buy-limt", force=True)
                     retry = 0
                     while retry < 33:
                         time.sleep(1)
-                        order_status = Huobi.get_order_detail(order_id)
+                        order_status = self.huobi.get_order_detail(order_id)
                         if order_status == "filled":
                             return amount
                         retry += 1
                     
-                    if Huobi.cancel_order(order_id) == "ok":
-                        return Huobi.place_order(amount, 0, self.currency_code+"usdt", "buy-market", force=True)
+                    if self.huobi.cancel_order(order_id) == "ok":
+                        return self.huobi.place_order(amount, 0, self.currency_code+"usdt", "buy-market", force=True)
                         
 
     def _binance_trade_handler(self, operation: str, price: float, amount: float, advance_mode=None):
@@ -257,7 +256,7 @@ class Core():
                     self._redis.set('binance_usdt_amount', new_usdt_amount)
                     return True
                 else:
-                    result = Binance.place_order(self.currency_code+"usdt", "sell", "LIMIT", amount, price, "FOK")
+                    result = self.binance.place_order(self.currency_code+"usdt", "sell", "LIMIT", amount, price, "FOK")
                     if result["status"] == "FILLED":
                         return amount
                     return None
@@ -275,31 +274,31 @@ class Core():
                     self._redis.set('binance_usdt_amount', new_usdt_amount)
                     return True
                 else:
-                    result = Binance.place_order(self.currency_code+"usdt", "buy", "LIMIT", amount, price, "GTC")
+                    result = self.binance.place_order(self.currency_code+"usdt", "buy", "LIMIT", amount, price, "GTC")
                     if result["status"] == "FILLED":
                         return amount
                     elif result["status"] == "NEW":
                         retry = 0
                         while retry < 33:
                             time.sleep(1)
-                            order_status = Binance.get_order_detail(self.currency_code+"usdt", result["orderId"])["status"]
+                            order_status = self.binance.get_order_detail(self.currency_code+"usdt", result["orderId"])["status"]
                             if order_status == "FILLED":
                                 return amount
                             retry += 1
 
-                        order_status = Binance.cancel_order(self.currency_code+"usdt", result["orderId"])["status"]
+                        order_status = self.binance.cancel_order(self.currency_code+"usdt", result["orderId"])["status"]
                         if order_status == "CANCELED":
-                            return Binance.place_order(self.currency_code+"usdt", "buy", "market", amount, 0, "GTC")
+                            return self.binance.place_order(self.currency_code+"usdt", "buy", "market", amount, 0, "GTC")
                     else: return None
                         
     
     def account_update(self):
        
-        huobi_account = Huobi.get_account_balance(self.currency_code, "usdt")
+        huobi_account = self.huobi.get_account_balance(self.currency_code, "usdt")
         HUOBI_CURRENCY_AMOUNT = huobi_account['eos']['balance']
         HUOBI_USDT_AMOUNT = huobi_account['usdt']['balance']  
         
-        binance_account = Binance.get_account_balance(self.currency_code, "usdt")
+        binance_account = self.binance.get_account_balance(self.currency_code, "usdt")
         BINANCE_CURRENCY_AMOUNT = binance_account['eos']['free']
         BINANCE_USDT_AMOUNT = binance_account['usdt']['free']
 

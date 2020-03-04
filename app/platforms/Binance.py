@@ -291,6 +291,7 @@ class Binance(Platform):
             return self.cancel_order(symbol, order_id)
     
     def get_trade_precision(self, currency: str):
+        
         request_url = self._prepare_request_data("/api/v3/exchangeInfo", None, {})
         try:
             symbols = requests.get(request_url, headers=self._headers).json()["symbols"]
