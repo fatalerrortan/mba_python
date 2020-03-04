@@ -81,7 +81,7 @@ class Binance(Platform):
                     json_str = '{"market": "binance","max_bid": '+result["bidPrice"]+', "bid_amount": '+result["bidQty"]+',"min_ask": '+result["askPrice"]+', "ask_amount": '+result["askQty"]+'}'
                     self.redis.set('binance', json_str) 
             except Exception as e:
-                self.logger.warning("cannot extract max bid and min ask from retrieved Binance api")
+                self.logger.warning("ERROR: cannot extract max bid and min ask from retrieved Binance api")
                 self.logger.warning(getattr(e, 'message', repr(e)))
                 self.logger.warning(traceback.format_exc())
                 continue
@@ -158,16 +158,26 @@ class Binance(Platform):
             "side":"SELL"
         }             
         """
-        params = {
-           "symbol": symbol.upper(),
-           "side": side.upper(),
-           "type": type.upper(),
-           "timeInForce": time_in_force.upper(),
-           "quantity": quantity,
-           "price": price,
-           # "stopPrice": stop_price,
-           "newOrderRespType": "RESULT"
-        }
+        if type == "market":
+            params = {
+                "symbol": symbol.upper(),
+                "side": side.upper(),
+                "type": type.upper(),
+                "timeInForce": time_in_force.upper(),
+                "quantity": quantity,
+                "newOrderRespType": "RESULT"
+            }
+        else:
+            params = {
+                "symbol": symbol.upper(),
+                "side": side.upper(),
+                "type": type.upper(),
+                "timeInForce": time_in_force.upper(),
+                "quantity": quantity,
+                "price": price,
+                # "stopPrice": stop_price,
+                "newOrderRespType": "RESULT"
+            }
         endpoint = "/api/v3/order/test" if test_mode == True else "/api/v3/order"
         request_url = self._prepare_request_data(endpoint, "TRADE", params)
         try:
@@ -176,12 +186,14 @@ class Binance(Platform):
                 return result
             else: 
                 self.logger.error(result)
-                return None
+                time.sleep(1)
+                return self.place_order(symbol, side, type, quantity, price, time_in_force)
         except Exception as e:
-            self.logger.error("cannot place Binance trade order")
+            self.logger.error("ERROR: cannot place Binance trade order")
             self.logger.error(getattr(e, 'message', repr(e)))
             self.logger.error(traceback.format_exc())
-            return None
+            time.sleep(1)
+            return self.place_order(symbol, side, type, quantity, price, time_in_force)
         
         return result
 
@@ -218,9 +230,21 @@ class Binance(Platform):
                 "symbol": symbol.upper(),
                 "orderId": order_id
                 }
-        request_url = self._prepare_request_data("/api/v3/order", "USER_DATA", data)
-        result = requests.get(request_url, headers=self._headers).json()
-        return result
+        try:        
+            request_url = self._prepare_request_data("/api/v3/order", "USER_DATA", data)
+            result = requests.get(request_url, headers=self._headers).json()
+            if "orderId" in result:
+                return result
+            else: 
+                self.logger.error(result)
+                time.sleep(1)
+                return self.get_order_detail(symbol, order_id)
+        except Exception as e:
+            self.logger.error("ERROR: cannot retrieve Binance trade order detail")
+            self.logger.error(getattr(e, 'message', repr(e)))
+            self.logger.error(traceback.format_exc())
+            time.sleep(1)
+            return self.get_order_detail(symbol, order_id)
 
     def cancel_order(self, symbol: str, order_id: int):
         """[summary]
@@ -250,9 +274,21 @@ class Binance(Platform):
                 "symbol": symbol.upper(),
                 "orderId": order_id
                 }
-        request_url = self._prepare_request_data("/api/v3/order", "TRADE", data)
-        result = requests.delete(request_url, headers=self._headers).json()
-        return result
+        try:
+            request_url = self._prepare_request_data("/api/v3/order", "TRADE", data)
+            result = requests.delete(request_url, headers=self._headers).json()
+            if "orderId" in result:
+                return result
+            else: 
+                self.logger.error(result)
+                time.sleep(1)
+                return self.cancel_order(symbol, order_id)
+        except Exception as e:
+            self.logger.error("ERROR: cannot cancel Binance trade order")
+            self.logger.error(getattr(e, 'message', repr(e)))
+            self.logger.error(traceback.format_exc())
+            time.sleep(1)
+            return self.cancel_order(symbol, order_id)
 
     def _prepare_request_data(self, uri: str, auth_type: str, params: dict):
         

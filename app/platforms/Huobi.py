@@ -4,7 +4,7 @@ import websockets
 import gzip
 import json
 import traceback
-import datetime
+import time 
 import urllib.parse
 import requests
 from datetime import datetime
@@ -203,14 +203,23 @@ class Huobi(Platform):
         if not self._account_id:
             self.get_account_info()
 
-        post_data = {
-            "account-id": str(self._account_id),
-            "amount": str(amount),
-            "price": str(price),
-            "source": "api",
-            "symbol": str(symbol),
-            "type": str(trade_type)
-        }
+        if trade_type == "buy-market":
+            post_data = {
+                "account-id": str(self._account_id),
+                "amount": str(amount),
+                "source": "api",
+                "symbol": str(symbol),
+                "type": str(trade_type)
+            }
+        else:
+            post_data = {
+                "account-id": str(self._account_id),
+                "amount": str(amount),
+                "price": str(price),
+                "source": "api",
+                "symbol": str(symbol),
+                "type": str(trade_type)
+            }
 
         post_data = json.dumps(post_data)
 
@@ -218,15 +227,18 @@ class Huobi(Platform):
             request_url = self._prepare_request_data("POST", "/v1/order/orders/place")
             result = requests.post(request_url, post_data, headers=self.headers).json()
             if result["status"] == "ok":
-                return result
+                return result["data"]
             else: 
                 self.logger.warning(result["err-msg"])
-                return None
+                time.sleep(1)
+                return self.place_order(amount, price, symbol, trade_type)
+    
         except Exception as e:
-            self.logger.error("cannot place Huobi trade order")
+            self.logger.error("ERROR: cannot place Huobi trade order")
             self.logger.error(getattr(e, 'message', repr(e)))
             self.logger.error(traceback.format_exc())
-            return None
+            time.sleep(1)
+            return self.place_order(amount, price, symbol, trade_type)
 
     def get_order_detail(self, order_id):
         """[summary]
@@ -256,9 +268,20 @@ class Huobi(Platform):
                 }
             }
         """
-        request_url = self._prepare_request_data("GET", "/v1/order/orders/{}".format(order_id))
-        raw_result = requests.get(request_url).json()
-        return raw_result
+        try:
+            request_url = self._prepare_request_data("GET", "/v1/order/orders/{}".format(order_id))
+            raw_result = requests.get(request_url).json()
+            if raw_result["status"] == "ok":
+                return raw_result["state"]
+            else: 
+                self.logger.warning(raw_result["err-msg"])
+                time.sleep(1)
+                return self.get_order_detail(order_id)
+        except Exception as e:
+            self.logger.error("ERROR: cannot retrieve Huobi order state")
+            self.logger.error(getattr(e, 'message', repr(e)))
+            self.logger.error(traceback.format_exc())
+            return self.get_order_detail(order_id)
     
     def cancel_order(self, order_id):
         """[summary]
@@ -269,9 +292,20 @@ class Huobi(Platform):
         Returns:
             {'status': 'ok', 'data': '70913970151'} if sth get wrong, status = error
         """
-        request_url = self._prepare_request_data("POST", "/v1/order/orders/{}/submitcancel".format(order_id))
-        raw_result = requests.post(request_url, headers=self.headers).json()
-        return raw_result
+        try:
+            request_url = self._prepare_request_data("POST", "/v1/order/orders/{}/submitcancel".format(order_id))
+            raw_result = requests.post(request_url, headers=self.headers).json()
+            if raw_result["status"] == "ok":
+                return raw_result["status"]
+            else: 
+                self.logger.warning(raw_result["err-msg"])
+                time.sleep(1)
+                return self.cancel_order(order_id)
+        except Exception as e:
+            self.logger.error("ERROR: cannot cancel Huobi order")
+            self.logger.error(getattr(e, 'message', repr(e)))
+            self.logger.error(traceback.format_exc())
+            return self.cancel_order(order_id)
 
     def _prepare_request_data(self, post_method: str, uri: str, **params):
         request_params_dict = {
