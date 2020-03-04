@@ -86,7 +86,7 @@ if __name__ == '__main__':
         # core_coroutine = Core(redis, currency_code, freq_analyser) 
 
      
-        print(binance_coroutine.get_trade_precision("eth"))
+        binance_coroutine.get_trade_precision("eos")
         # result1 = huobi_coroutine.get_account_balance("eos", "usdt")
         # print(result1)
         # {'eos': {'currency': 'eos', 'type': 'trade', 'balance': '0.1994'}, 'usdt': {'currency': 'usdt', 'type': 'trade', 'balance': '9.72044542'}}

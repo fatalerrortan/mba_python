@@ -8,7 +8,7 @@ import configparser
 import logging
 
 class Core():
-    def __init__(self, redis: object, currency: str, freq_analyser: object, huobi=huobi, binance=binance):
+    def __init__(self, redis: object, currency: str, freq_analyser: object, huobi: object, binance: object):
 
         self.logger = logging.getLogger("root.{}".format(__name__))
         self._redis = redis
@@ -96,7 +96,8 @@ class Core():
                             self._print_on_terminal(a, b, a_acceptable_amount, render_type='trade_event')
                             self._print_on_terminal(margin, rule_label, trade_rate, render_type='trade_rule')
                             b_acceptable_amount = trade_handler[b_market]('buy', b_min_ask, a_acceptable_amount, advance_mode=True)
-                            b_acceptable_amount = self.lot_size_validate(b_acceptable_amount)
+                            if b_acceptable_amount:
+                                b_acceptable_amount = self.lot_size_validate(b_acceptable_amount)
                     except Exception as e:
                         self.logger.critical("ERROR: transaction pre check mode failed")
                         self.logger.critical(getattr(e, 'message', repr(e)))
@@ -323,7 +324,7 @@ class Core():
                 return (label, rule['rate'], float(rule['rate']) * current_total_curreny_amount)
         return (None, None, None)             
     
-    def lot_size_validate(self, number, precision=2):
+    def lot_size_validate(self, number):
         """[summary]
         
         Arguments:
@@ -335,7 +336,9 @@ class Core():
         Returns:
             [type] -- [description]
         """
+        precision = self.binance.get_trade_precision(self.currency_code)
         numbers = str(number)
+        self.logger.debug("!!!!!!!!!!!!!!!!!!!!!!!!!!to validate!!!!!!!!!!!!{}".format(numbers))
         if "." in numbers:
             numbers = str(number).split(".")
             number_strfy = numbers[0] + "." + numbers[1][:precision]

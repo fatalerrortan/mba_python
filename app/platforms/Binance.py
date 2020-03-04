@@ -10,6 +10,7 @@ import hashlib
 import hmac
 import base64
 import logging 
+import locale
 
 class Binance(Platform):
 
@@ -298,9 +299,14 @@ class Binance(Platform):
             symbol = currency.upper() + "USDT"
             for item in symbols:
                 if item["symbol"] == symbol:
-                    minQty_lotsize = item["filters"][2]["minQty"]
-                    return minQty_lotsize
-            raise KeyError("ERROR: No lot size info of the given currency")
+                    minQty_lotsize = str(item["filters"][2]["minQty"]).split(".")[1]
+                    precision = 0
+                    for letter in minQty_lotsize:
+                        precision += 1
+                        if letter == "1":
+                            return int(precision)
+
+            # raise KeyError("ERROR: No lot size info of the given currency")
         except Exception as e:
             self.logger.critical("ERROR: cannot extract lot size precision from retrieved Binance api")
             self.logger.critical(getattr(e, 'message', repr(e)))
