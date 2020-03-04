@@ -22,7 +22,9 @@ class Core():
         # self.show_off_account_status()
 
     async def bricks_checking(self):
+        """[summary]
         # compare the records of selected platforms 
+        """
         while True:
             await asyncio.sleep(1)
 
@@ -31,7 +33,7 @@ class Core():
                 binance_record = json.loads(self._redis.get('binance'))
                 self._print_on_terminal(huobi_record, binance_record, None, render_type='normal')
             except Exception as e:
-                self.logger.warning("cannot retrieve current bid and sell records from redis")
+                self.logger.warning("ERROR: cannot retrieve current bid and sell records from redis")
                 self.logger.critical(getattr(e, 'message', repr(e)))
                 self.logger.critical(traceback.format_exc())
                 continue
@@ -45,6 +47,12 @@ class Core():
             self._print_on_terminal(None, None, None, render_type='status')
 
     def _is_profitable(self, a: json, b: json):
+        """[summary]
+        
+        Arguments:
+            a {json} -- [description]
+            b {json} -- [description]
+        """
 
         trade_handler = {
             'huobi': self._huobi_trade_handler,
@@ -71,7 +79,7 @@ class Core():
                 try:
                     rule_label, trade_rate, MAX_TRADE_AMOUNT = self._get_max_trade_amount(margin)
                 except Exception as e:
-                    self.logger.critical("cannot get max trade amount, it could be caused by reading undefined trade rule rules/testing.json")
+                    self.logger.critical("ERROR: cannot get max trade amount, it could be caused by reading undefined trade rule rules/testing.json")
                     self.logger.critical(getattr(e, 'message', repr(e)))
                     self.logger.critical(traceback.format_exc())
                     raise
@@ -79,17 +87,19 @@ class Core():
                 if MAX_TRADE_AMOUNT:
                     if available_trade_amount > MAX_TRADE_AMOUNT:
                         available_trade_amount = MAX_TRADE_AMOUNT
+                        available_trade_amount = self.lot_size_validate(available_trade_amount)
             
                     try:
                         a_acceptable_amount = trade_handler[a_market]('sell', a_max_bid, available_trade_amount, advance_mode=True)
                         # get the adjusted new a_new_amount(could be unchanged) and then pass the a_new_amount to the followd checker, namely trade_handler[b_market]
                         if a_acceptable_amount:
+                            a_acceptable_amount = self.lot_size_validate(a_acceptable_amount)
                             self._print_on_terminal(a, b, a_acceptable_amount, render_type='trade_event')
                             self._print_on_terminal(margin, rule_label, trade_rate, render_type='trade_rule')
                             b_acceptable_amount = trade_handler[b_market]('buy', b_min_ask, a_acceptable_amount, advance_mode=True)
-
+                            b_acceptable_amount = self.lot_size_validate(b_acceptable_amount)
                     except Exception as e:
-                        self.logger.critical("transaction pre check mode failed")
+                        self.logger.critical("ERROR: transaction pre check mode failed")
                         self.logger.critical(getattr(e, 'message', repr(e)))
                         self.logger.critical(traceback.format_exc())
                         raise   
@@ -107,7 +117,7 @@ class Core():
                                 if not self._redis.get('exec_mode') == b'simulation':
                                     self.account_update()
                             except Exception as e:
-                                self.logger.critical("cannot update accout balance after transaction")
+                                self.logger.critical("ERROR: ERROR: cannot update accout balance after transaction")
                                 self.logger.critical(getattr(e, 'message', repr(e)))
                                 self.logger.critical(traceback.format_exc())
                                 raise
@@ -121,17 +131,37 @@ class Core():
         return 0
     
     def _get_trade_rules(self, currency):
+        """[summary]
+        
+        Arguments:
+            currency {[type]} -- [description]
+        
+        Returns:
+            [type] -- [description]
+        """
         TRADE_RULE_FILE = self._redis.get("trade_rule_file").decode("utf-8")
         with open('rules/{}'.format(TRADE_RULE_FILE)) as trade_rule_file:
             try:
                 trade_rule_json = json.load(trade_rule_file)[currency] 
             except KeyError:
-                self.logger.warning('cannot find pre-defined trade rule, using default')    
+                self.logger.warning('ERROR: cannot find pre-defined trade rule, using default')    
                 return self._get_trade_rules('default')
             return trade_rule_json    
 
     def _huobi_trade_handler(self, operation: str, price: float, amount: float, advance_mode=None):
-            
+        """[summary]
+        
+        Arguments:
+            operation {str} -- [description]
+            price {float} -- [description]
+            amount {float} -- [description]
+        
+        Keyword Arguments:
+            advance_mode {[type]} -- [description] (default: {None})
+        
+        Returns:
+            [type] -- [description]
+        """
         order_size = price * amount
 
         if order_size <= 10: return None
@@ -192,6 +222,19 @@ class Core():
                         
 
     def _binance_trade_handler(self, operation: str, price: float, amount: float, advance_mode=None):
+        """[summary]
+        
+        Arguments:
+            operation {str} -- [description]
+            price {float} -- [description]
+            amount {float} -- [description]
+        
+        Keyword Arguments:
+            advance_mode {[type]} -- [description] (default: {None})
+        
+        Returns:
+            [type] -- [description]
+        """
         
         order_size = price * amount
 
@@ -266,13 +309,39 @@ class Core():
         self._redis.set('binance_usdt_amount', BINANCE_USDT_AMOUNT)
 
     def _get_max_trade_amount(self, margin: float):
-
+        """[summary]
+        
+        Arguments:
+            margin {float} -- [description]
+        
+        Returns:
+            [type] -- [description]
+        """
         rules = self.trade_rule_json
         current_total_curreny_amount = float(self._redis.get('huobi_currency_amount'))+ float(self._redis.get('binance_currency_amount'))
         for label, rule in rules.items():
             if float(rule['from']) <= margin < float(rule['to']):
                 return (label, rule['rate'], float(rule['rate']) * current_total_curreny_amount)
-        return (None, None, None)       
+        return (None, None, None)             
+    
+    def lot_size_validate(self, number, precision=2):
+        """[summary]
+        
+        Arguments:
+            number {[type]} -- [description]
+        
+        Keyword Arguments:
+            precision {int} -- [description] (default: {2}) binance eos default lotsize
+        
+        Returns:
+            [type] -- [description]
+        """
+        numbers = str(number)
+        if "." in numbers:
+            numbers = str(number).split(".")
+            number_strfy = numbers[0] + "." + numbers[1][:precision]
+            return float(number_strfy)
+        else: return float(numbers)
 
     def _print_on_terminal(self, *data, render_type='normal'):
         """[summary]

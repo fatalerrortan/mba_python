@@ -31,52 +31,52 @@ class Huobi(Platform):
             "Content-Type": "application/json"
         }
 
-    async def fetch_subscription_deprecated(self, sub: str):
-        """[summary] !deprecated! 
-        subscribe  huobi market depth to get last bids and asks 
-        response from huobi websocket is a json with cluster of the last bids and asks  
-        Arguments:
-            sub {str} -- [description]
-        """
+    # async def fetch_subscription_deprecated(self, sub: str):
+    #     """[summary] !deprecated! 
+    #     subscribe  huobi market depth to get last bids and asks 
+    #     response from huobi websocket is a json with cluster of the last bids and asks  
+    #     Arguments:
+    #         sub {str} -- [description]
+    #     """
 
-        self.sub = sub
-        async with websockets.connect(self._ws_url) as ws: 
-            await ws.send(sub)  
-            while True:
+    #     self.sub = sub
+    #     async with websockets.connect(self._ws_url) as ws: 
+    #         await ws.send(sub)  
+    #         while True:
 
-                if not ws.open:
-                    self.logger.warning("............... reconnecting to BINANCE websocket ...............")                           
-                    ws = await websockets.connect(self._ws_url)
-                    await ws.send(sub)
+    #             if not ws.open:
+    #                 self.logger.warning("............... reconnecting to BINANCE websocket ...............")                           
+    #                 ws = await websockets.connect(self._ws_url)
+    #                 await ws.send(sub)
                     
-                try:
-                    raw_respons = await ws.recv()
-                    result = gzip.decompress(raw_respons).decode('utf-8')
+    #             try:
+    #                 raw_respons = await ws.recv()
+    #                 result = gzip.decompress(raw_respons).decode('utf-8')
                     
-                except Exception as e:
-                    self.logger.warning("cannot retrieve trade info from Huobi websocket")
-                    self.logger.critical(getattr(e, 'message', repr(e)))
-                    self.logger.critical(traceback.format_exc())
-                    continue                             
-                if result[2:6] == 'ping':
-                    ping = str(json.loads(result).get('ping'))
-                    pong = '{"pong":'+ping+'}'
-                    await ws.send(pong)
-                else:
-                    try:
-                        result = json.loads(result).get('tick')
-                        if not result: continue
-                        max_bid, bid_amount = await self._get_max_bid(result['bids'])
-                        if max_bid == None or bid_amount == None: continue
-                        min_ask, ask_amount = await self._get_min_ask(result['asks'])
-                        if min_ask == None or ask_amount == None: continue
-                        json_str = '{"market": "huobi","max_bid": '+str(max_bid)+', "bid_amount": '+str(bid_amount)+',"min_ask": '+str(min_ask)+', "ask_amount": '+str(ask_amount)+'}'                        
-                        self.redis.set('huobi', json_str)                      
-                    except Exception as e:
-                        self.logger.warning("cannot extract max bid and min sell from retrieved Huobi websocket return")
-                        self.logger.critical(getattr(e, 'message', repr(e)))
-                        self.logger.critical(traceback.format_exc())
-                        continue    
+    #             except Exception as e:
+    #                 self.logger.warning("cannot retrieve trade info from Huobi websocket")
+    #                 self.logger.critical(getattr(e, 'message', repr(e)))
+    #                 self.logger.critical(traceback.format_exc())
+    #                 continue                             
+    #             if result[2:6] == 'ping':
+    #                 ping = str(json.loads(result).get('ping'))
+    #                 pong = '{"pong":'+ping+'}'
+    #                 await ws.send(pong)
+    #             else:
+    #                 try:
+    #                     result = json.loads(result).get('tick')
+    #                     if not result: continue
+    #                     max_bid, bid_amount = await self._get_max_bid(result['bids'])
+    #                     if max_bid == None or bid_amount == None: continue
+    #                     min_ask, ask_amount = await self._get_min_ask(result['asks'])
+    #                     if min_ask == None or ask_amount == None: continue
+    #                     json_str = '{"market": "huobi","max_bid": '+str(max_bid)+', "bid_amount": '+str(bid_amount)+',"min_ask": '+str(min_ask)+', "ask_amount": '+str(ask_amount)+'}'                        
+    #                     self.redis.set('huobi', json_str)                      
+    #                 except Exception as e:
+    #                     self.logger.warning("cannot extract max bid and min sell from retrieved Huobi websocket return")
+    #                     self.logger.critical(getattr(e, 'message', repr(e)))
+    #                     self.logger.critical(traceback.format_exc())
+    #                     continue    
     
     async def fetch_subscription(self, symbol: str, type: str):
         """[summary]
@@ -120,7 +120,7 @@ class Huobi(Platform):
                     json_str = '{"market": "huobi","max_bid": '+str(max_bid)+', "bid_amount": '+str(bid_amount)+',"min_ask": '+str(min_ask)+', "ask_amount": '+str(ask_amount)+'}'                        
                     self.redis.set('huobi', json_str)                      
             except Exception as e:
-                self.logger.warning("cannot extract max bid and min sell from retrieved Huobi API return")
+                self.logger.warning("ERROR: cannot extract max bid and min sell from retrieved Huobi API return")
                 self.logger.warning(getattr(e, 'message', repr(e)))
                 self.logger.warning(traceback.format_exc())
                 continue  
