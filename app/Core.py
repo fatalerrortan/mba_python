@@ -292,7 +292,6 @@ class Core():
                             return self.binance.place_order(self.currency_code+"usdt", "buy", "market", amount, 0, "GTC")
                     else: return None
                         
-    
     def account_update(self):
        
         huobi_account = self.huobi.get_account_balance(self.currency_code, "usdt")
@@ -338,7 +337,6 @@ class Core():
         """
         precision = self.binance.get_trade_precision(self.currency_code)
         numbers = str(number)
-        self.logger.debug("!!!!!!!!!!!!!!!!!!!!!!!!!!to validate!!!!!!!!!!!!{}".format(numbers))
         if "." in numbers:
             numbers = str(number).split(".")
             number_strfy = numbers[0] + "." + numbers[1][:precision]
@@ -388,19 +386,17 @@ class Core():
         if render_type == 'status':
             table = PrettyTable()
             table.field_names = ["Platforms", self.currency[0].upper(), "USDT"]
-            if self._redis.get('exec_mode') == b'simulation':
-                table.add_row(["HUOBI", round( float(self._redis.get('huobi_currency_amount')), 20), round( float(self._redis.get('huobi_usdt_amount')) , 20)])
-                table.add_row(["BINANCE", round(float(self._redis.get('binance_currency_amount')), 20), round(float(self._redis.get('binance_usdt_amount')), 20)])
-                self.logger.info("{}{}".format("\r\n", table))
-                
-                currency_profit = float(self._redis.get('huobi_currency_amount')) + float(self._redis.get('binance_currency_amount')) - float(self._redis.get("init_total_curreny_amount"))
-                usdt_profit = float(self._redis.get('huobi_usdt_amount')) + float(self._redis.get('binance_usdt_amount')) - float(self._redis.get("init_total_usdt_amount"))
-                msg = '\r\n---> initial {} amount / profit: {} / {:.20f} <--- \r\n---> initial usdt amount / profit: {} / {:.20f} <---'.\
-                    format(self.currency[0], self._redis.get("init_total_curreny_amount").decode("utf-8"), currency_profit, self._redis.get("init_total_usdt_amount").decode("utf-8"), usdt_profit)
-              
-                self.logger.info(msg)
-            else:
-                self.logger.info('print for prod status')
+            table.add_row(["HUOBI", round( float(self._redis.get('huobi_currency_amount')), 20), round( float(self._redis.get('huobi_usdt_amount')) , 20)])
+            table.add_row(["BINANCE", round(float(self._redis.get('binance_currency_amount')), 20), round(float(self._redis.get('binance_usdt_amount')), 20)])
+            self.logger.info("{}{}".format("\r\n", table))
+            
+            currency_profit = float(self._redis.get('huobi_currency_amount')) + float(self._redis.get('binance_currency_amount')) - float(self._redis.get("init_total_curreny_amount"))
+            usdt_profit = float(self._redis.get('huobi_usdt_amount')) + float(self._redis.get('binance_usdt_amount')) - float(self._redis.get("init_total_usdt_amount"))
+            msg = '\r\n---> initial {} amount / profit: {} / {:.20f} <--- \r\n---> initial usdt amount / profit: {} / {:.20f} <---'.\
+                format(self.currency[0], self._redis.get("init_total_curreny_amount").decode("utf-8"), currency_profit, self._redis.get("init_total_usdt_amount").decode("utf-8"), usdt_profit)
+            
+            self.logger.info(msg)
+
 
         if render_type == 'trade_operation':
 
