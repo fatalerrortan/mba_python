@@ -86,18 +86,17 @@ class Core():
                 if MAX_TRADE_AMOUNT:
                     if available_trade_amount > MAX_TRADE_AMOUNT:
                         available_trade_amount = MAX_TRADE_AMOUNT
-                        available_trade_amount = self.lot_size_validate(available_trade_amount)
+                        available_trade_amount = self.lot_size_validate(str(available_trade_amount))
             
                     try:
                         a_acceptable_amount = trade_handler[a_market]('sell', a_max_bid, available_trade_amount, advance_mode=True)
                         # get the adjusted new a_new_amount(could be unchanged) and then pass the a_new_amount to the followd checker, namely trade_handler[b_market]
                         if a_acceptable_amount:
-                            a_acceptable_amount = self.lot_size_validate(a_acceptable_amount)
+                            a_acceptable_amount = self.lot_size_validate(str(a_acceptable_amount))
                             self._print_on_terminal(a, b, a_acceptable_amount, render_type='trade_event')
                             self._print_on_terminal(margin, rule_label, trade_rate, render_type='trade_rule')
                             b_acceptable_amount = trade_handler[b_market]('buy', b_min_ask, a_acceptable_amount, advance_mode=True)
-                            if b_acceptable_amount:
-                                b_acceptable_amount = self.lot_size_validate(b_acceptable_amount)
+                            
                     except Exception as e:
                         self.logger.critical("ERROR: transaction pre check mode failed")
                         self.logger.critical(getattr(e, 'message', repr(e)))
@@ -105,6 +104,10 @@ class Core():
                         raise   
 
                     if a_acceptable_amount and b_acceptable_amount:
+
+                        print("amount_a: "+str(a_acceptable_amount))
+                        print("amount_b: "+str(b_acceptable_amount))
+                        
                         a_sell_result = trade_handler[a_market]('sell', a_max_bid, a_acceptable_amount)
                         if a_sell_result:
                             self._print_on_terminal('sell', a, a_acceptable_amount, render_type='trade_operation')
@@ -183,10 +186,10 @@ class Core():
                     self._redis.set('huobi_usdt_amount', new_usdt_amount)
                     return True
                 else:
-                    order_id = self.huobi.place_order(amount, price, self.currency_code+"usdt", "sell-limt")
+                    order_id = self.huobi.place_order(amount, price, self.currency_code+"usdt", "sell-limit")
                     if not order_id: return None
                     
-                    time.sleep(1)
+                    time.sleep(0.5)
                     order_status = self.huobi.get_order_detail(order_id)
                     if order_status == "filled":
                         return amount
@@ -208,7 +211,7 @@ class Core():
                     self._redis.set('huobi_usdt_amount', new_usdt_amount)
                     return True
                 else:
-                    order_id = self.huobi.place_order(amount, price, self.currency_code+"usdt", "buy-limt", force=True)
+                    order_id = self.huobi.place_order(amount, price, self.currency_code+"usdt", "buy-limit")
                     retry = 0
                     while retry < 33:
                         time.sleep(1)
@@ -218,7 +221,7 @@ class Core():
                         retry += 1
                     
                     if self.huobi.cancel_order(order_id) == "ok":
-                        return self.huobi.place_order(amount, 0, self.currency_code+"usdt", "buy-market", force=True)
+                        return self.huobi.place_order(amount, 0, self.currency_code+"usdt", "buy-market")
                         
 
     def _binance_trade_handler(self, operation: str, price: float, amount: float, advance_mode=None):
@@ -295,11 +298,11 @@ class Core():
     def account_update(self):
        
         huobi_account = self.huobi.get_account_balance(self.currency_code, "usdt")
-        HUOBI_CURRENCY_AMOUNT = huobi_account['eos']['balance']
+        HUOBI_CURRENCY_AMOUNT = huobi_account[self.currency_code]['balance']
         HUOBI_USDT_AMOUNT = huobi_account['usdt']['balance']  
         
         binance_account = self.binance.get_account_balance(self.currency_code, "usdt")
-        BINANCE_CURRENCY_AMOUNT = binance_account['eos']['free']
+        BINANCE_CURRENCY_AMOUNT = binance_account[self.currency_code]['free']
         BINANCE_USDT_AMOUNT = binance_account['usdt']['free']
 
         self._redis.set('huobi_currency_amount', HUOBI_CURRENCY_AMOUNT)  
@@ -323,7 +326,7 @@ class Core():
                 return (label, rule['rate'], float(rule['rate']) * current_total_curreny_amount)
         return (None, None, None)             
     
-    def lot_size_validate(self, number):
+    def lot_size_validate(self, number: str):
         """[summary]
         
         Arguments:
@@ -335,11 +338,14 @@ class Core():
         Returns:
             [type] -- [description]
         """
-        precision = self.binance.get_trade_precision(self.currency_code)
+        
+        precision = int(self._redis.get("amount_precision"))
+
         numbers = str(number)
         if "." in numbers:
             numbers = str(number).split(".")
             number_strfy = numbers[0] + "." + numbers[1][:precision]
+            
             return float(number_strfy)
         else: return float(numbers)
 
@@ -350,8 +356,8 @@ class Core():
             *data - the specific sub-parameters depend on the given render type
             render_type {str} -- [description] (default: {'normal'})
         """
-        time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        title = '----------------------------------'+self.currency[1]+'------------------------------\r\n'+time
+        # time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        title = '----------------------------------'+self.currency[1]+'------------------------------\r\n'
 
         self.logger.debug(title)
 
@@ -359,12 +365,12 @@ class Core():
             
             a_record, b_record = data[0], data[1] 
 
-            a_msg = '{} -> (max bid: {:.20f}, amount: {:.20f}); (min ask: {:.20f}, amount: {:.20f})'\
-                    .format(str(a_record['market']), a_record['max_bid'], a_record['bid_amount'],\
-                    a_record['min_ask'], a_record['ask_amount'])
-            b_msg = '{} -> (max bid: {:.20f}, amount: {:.20f}), (min ask: {:.20f}, amount: {:.20f})'\
-                    .format(str(b_record['market']), b_record['max_bid'], b_record['bid_amount'],\
-                    b_record['min_ask'], b_record['ask_amount'])
+            a_msg = '{} -> (max bid: {}, amount: {}); (min ask: {}, amount: {})'\
+                    .format(str(a_record['market']), a_record['max_bid'], self.lot_size_validate(str(a_record['bid_amount'])),\
+                    a_record['min_ask'], self.lot_size_validate(str(a_record['ask_amount'])))
+            b_msg = '{} -> (max bid: {}, amount: {}), (min ask: {}, amount: {})'\
+                    .format(str(b_record['market']), b_record['max_bid'], self.lot_size_validate(str(b_record['bid_amount'])),\
+                    b_record['min_ask'], self.lot_size_validate(str(b_record['ask_amount'])))
             
             self.logger.debug(a_msg)
             self.logger.debug(b_msg)
@@ -374,8 +380,8 @@ class Core():
             a_record, b_record, operable_amount = data[0], data[1],  data[2]    
 
             available_amount = min(float(a_record['bid_amount']), float(b_record['ask_amount']))
-            msg = '\r\n>>>>>>>>>>>>>>>>>>>>>>Trade Event<<<<<<<<<<<<<<<<<<<<\r\n--->{} max bid: {:.20f} > {} min ask: {:.20f} --- available amount: {:.20f} --- operable amount: {:.20f}\r\n'.\
-                        format(a_record['market'], float(a_record['max_bid']), b_record['market'], float(b_record['min_ask']), available_amount, operable_amount)
+            msg = '\r\n>>>>>>>>>>>>>>>>>>>>>>Trade Event<<<<<<<<<<<<<<<<<<<<\r\n--->{} max bid: {} > {} min ask: {} --- available amount: {} --- operable amount: {}\r\n'.\
+                        format(a_record['market'], float(a_record['max_bid']), b_record['market'], float(b_record['min_ask']), self.lot_size_validate(str(available_amount)), self.lot_size_validate(str(operable_amount)))
             self.logger.info(msg)
 
         if render_type == 'trade_rule':
@@ -386,13 +392,13 @@ class Core():
         if render_type == 'status':
             table = PrettyTable()
             table.field_names = ["Platforms", self.currency[0].upper(), "USDT"]
-            table.add_row(["HUOBI", round( float(self._redis.get('huobi_currency_amount')), 20), round( float(self._redis.get('huobi_usdt_amount')) , 20)])
-            table.add_row(["BINANCE", round(float(self._redis.get('binance_currency_amount')), 20), round(float(self._redis.get('binance_usdt_amount')), 20)])
+            table.add_row(["HUOBI", self._redis.get('huobi_currency_amount').decode("utf-8"), self._redis.get('huobi_usdt_amount').decode("utf-8")])
+            table.add_row(["BINANCE", self._redis.get('binance_currency_amount').decode("utf-8"), self._redis.get('binance_usdt_amount').decode("utf-8")])
             self.logger.info("{}{}".format("\r\n", table))
             
-            currency_profit = float(self._redis.get('huobi_currency_amount')) + float(self._redis.get('binance_currency_amount')) - float(self._redis.get("init_total_curreny_amount"))
-            usdt_profit = float(self._redis.get('huobi_usdt_amount')) + float(self._redis.get('binance_usdt_amount')) - float(self._redis.get("init_total_usdt_amount"))
-            msg = '\r\n---> initial {} amount / profit: {} / {:.20f} <--- \r\n---> initial usdt amount / profit: {} / {:.20f} <---'.\
+            currency_profit = round(float(self._redis.get('huobi_currency_amount')) + float(self._redis.get('binance_currency_amount')) - float(self._redis.get("init_total_curreny_amount")), 5)
+            usdt_profit = round(float(self._redis.get('huobi_usdt_amount')) + float(self._redis.get('binance_usdt_amount')) - float(self._redis.get("init_total_usdt_amount")), 5)
+            msg = '\r\n---> initial {} amount / profit: {} / {} <--- \r\n---> initial usdt amount / profit: {} / {} <---'.\
                 format(self.currency[0], self._redis.get("init_total_curreny_amount").decode("utf-8"), currency_profit, self._redis.get("init_total_usdt_amount").decode("utf-8"), usdt_profit)
             
             self.logger.info(msg)
@@ -406,10 +412,10 @@ class Core():
 
             if operation == 'sell':
                 operation_total_price = float(platform['max_bid']) * float(operable_amount)
-                msg = '---> {:.20f} {} were sold in {} with the price {:.20f} usdt <---'.format(operable_amount, self.currency[0].upper(), platform['market'], operation_total_price)
+                msg = '---> {} {} were sold in {} with the price {} usdt <---'.format(operable_amount, self.currency[0].upper(), platform['market'], operation_total_price)
             elif operation == 'buy':
                 operation_total_price = float(platform['min_ask']) * float(operable_amount)
-                msg = '---> {:.20f} {} were purchased in {} with the price {:.20f} usdt <---'.format(operable_amount, self.currency[0].upper(), platform['market'], operation_total_price)
+                msg = '---> {} {} were purchased in {} with the price {} usdt <---'.format(operable_amount, self.currency[0].upper(), platform['market'], operation_total_price)
             self.logger.info(msg)
 
         if render_type == 'continue':

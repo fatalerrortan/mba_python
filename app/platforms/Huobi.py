@@ -208,8 +208,8 @@ class Huobi(Platform):
                 "account-id": str(self._account_id),
                 "amount": str(amount),
                 "source": "api",
-                "symbol": str(symbol),
-                "type": str(trade_type)
+                "symbol": symbol,
+                "type": trade_type
             }
         else:
             post_data = {
@@ -217,8 +217,8 @@ class Huobi(Platform):
                 "amount": str(amount),
                 "price": str(price),
                 "source": "api",
-                "symbol": str(symbol),
-                "type": str(trade_type)
+                "symbol": symbol,
+                "type": trade_type
             }
 
         post_data = json.dumps(post_data)
@@ -271,8 +271,9 @@ class Huobi(Platform):
         try:
             request_url = self._prepare_request_data("GET", "/v1/order/orders/{}".format(order_id))
             raw_result = requests.get(request_url).json()
+
             if raw_result["status"] == "ok":
-                return raw_result["state"]
+                return raw_result["data"]["state"]
             else: 
                 self.logger.warning(raw_result["err-msg"])
                 time.sleep(1)
@@ -306,6 +307,28 @@ class Huobi(Platform):
             self.logger.error(getattr(e, 'message', repr(e)))
             self.logger.error(traceback.format_exc())
             return self.cancel_order(order_id)
+
+    def get_trade_precision(self, currency: str):
+        try:
+            request_url = self._prepare_request_data("GET", "/v1/common/symbols")
+            raw_result = requests.get(request_url).json()
+
+            if raw_result["status"] == "ok":
+                symbols = raw_result["data"]
+                for item in symbols:
+                   if item["symbol"] == currency+"usdt":
+                       return int(item["amount-precision"])
+                
+                raise KeyError("ERROR: Huobi Api No lot size info of the given currency")
+            else: 
+                self.logger.warning(raw_result["err-msg"])
+                time.sleep(0.5)
+                return self.get_trade_precision(currency)
+        except Exception as e:
+            self.logger.error("ERROR: cannot extract lot size precision from retrieved Huobi api")
+            self.logger.error(getattr(e, 'message', repr(e)))
+            self.logger.error(traceback.format_exc())
+            return self.get_trade_precision(currency)
 
     def _prepare_request_data(self, post_method: str, uri: str, **params):
         request_params_dict = {

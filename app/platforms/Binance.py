@@ -306,7 +306,7 @@ class Binance(Platform):
                         if letter == "1":
                             return int(precision)
 
-            # raise KeyError("ERROR: No lot size info of the given currency")
+            raise KeyError("ERROR: Binance Api No lot size info of the given currency")
         except Exception as e:
             self.logger.critical("ERROR: cannot extract lot size precision from retrieved Binance api")
             self.logger.critical(getattr(e, 'message', repr(e)))

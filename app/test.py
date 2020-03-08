@@ -13,9 +13,9 @@ import sys
 import os
 import traceback
 
-currency_code = "eos"
-exec_mode = "simulation"
-rule_file = "testing.json"
+currency_code = "eth"
+exec_mode = "production"
+rule_file = "testing_0.5.json"
 
 logger = logging.getLogger("root")
 logger.setLevel(logging.DEBUG)
@@ -79,21 +79,24 @@ if __name__ == '__main__':
                 logger.critical(getattr(e, 'message', repr(e)))
                 logger.critical(traceback.format_exc())
                 raise 
-        
         binance_coroutine = Binance(BINANCE_WS_URL+BINANCE_STREAM, BINANCE_API_HOST, redis, BINANCE_API_KEY, BINANCE_SECRET_KEY)
-        huobi_coroutine = Huobi(HUOBI_WS_URL, HUOBI_API_HOST, redis, HUOBI_API_KEY, HUOBI_SECRET_KEY)    
-        # freq_analyser = Freq_Analyser(currency_code)
-        # core_coroutine = Core(redis, currency_code, freq_analyser) 
+        huobi_coroutine = Huobi(HUOBI_WS_URL, HUOBI_API_HOST, redis, HUOBI_API_KEY, HUOBI_SECRET_KEY)     
+        freq_analyser = Freq_Analyser(currency_code)
+        core_coroutine = Core(redis, currency_code, freq_analyser, huobi_coroutine, binance_coroutine) 
 
-     
-        binance_coroutine.get_trade_precision("eos")
-        # result1 = huobi_coroutine.get_account_balance("eos", "usdt")
+
+        result = core_coroutine.lot_size_validate("0.19129999999999999782")
+        print(result)
+        # result = huobi_coroutine.get_trade_precision("eth")
+        # print(result)
+        # result1 = huobi_coroutine.get_account_balance("eth", "usdt")
         # print(result1)
         # {'eos': {'currency': 'eos', 'type': 'trade', 'balance': '0.1994'}, 'usdt': {'currency': 'usdt', 'type': 'trade', 'balance': '9.72044542'}}
         
-        # result2 = huobi_coroutine.place_order(0.1994, 100, "eosusdt", "sell-limit")
+        # result2 = huobi_coroutine.place_order(0.1, 250, "ethusdt", "sell-limit")
+        # print(result2)
         # order_id = result2["data"]
-        # print(order_id)
+        
         # {'status': 'ok', 'data': '70913970151'}
         # 70913970151
 
@@ -101,7 +104,7 @@ if __name__ == '__main__':
         # print(result3)
         # {'eos': {'currency': 'eos', 'type': 'trade', 'balance': '0'}, 'usdt': {'currency': 'usdt', 'type': 'trade', 'balance': '9.72044542'}}
 
-        # result4 = huobi_coroutine.get_order_detail(order_id)
+        # result4 = huobi_coroutine.get_order_detail(73389829586)
         # print(result4)
 
 
