@@ -93,10 +93,26 @@ class Core():
                         # get the adjusted new a_new_amount(could be unchanged) and then pass the a_new_amount to the followd checker, namely trade_handler[b_market]
                         if a_acceptable_amount:
                             a_acceptable_amount = self.lot_size_validate(str(a_acceptable_amount))
+
+                            a_trade_fee_rate = float(self._redis.get("{}_trade_fee_rate".format(a_market)))
+                            a_trade_fee = a_trade_fee_rate * a_acceptable_amount * a_max_bid
+
                             self._print_on_terminal(a, b, a_acceptable_amount, render_type='trade_event')
                             self._print_on_terminal(margin, rule_label, trade_rate, render_type='trade_rule')
-                            b_acceptable_amount = trade_handler[b_market]('buy', b_min_ask, a_acceptable_amount, advance_mode=True)
-                            
+
+                            b_trade_fee_rate = float(self._redis.get("{}_trade_fee_rate".format(b_market)))
+                            b_acceptable_amount = a_acceptable_amount * (1 + b_trade_fee_rate)
+                            b_acceptable_amount = trade_handler[b_market]('buy', b_min_ask, b_acceptable_amount, advance_mode=True)
+
+                            if b_acceptable_amount:
+                                b_trade_fee = a_acceptable_amount * b_trade_fee_rate * b_min_ask
+                                total_trade_fee = a_trade_fee + b_trade_fee
+                                total_profit = margin * a_acceptable_amount
+                                netto_total_profit = total_profit - total_trade_fee
+
+                                self._print_on_terminal(total_profit, total_trade_fee, netto_total_profit, render_type='pre_profit')
+                                if netto_total_profit < 0: return
+                                                  
                     except Exception as e:
                         self.logger.critical("ERROR: transaction pre check mode failed")
                         self.logger.critical(getattr(e, 'message', repr(e)))
@@ -105,8 +121,8 @@ class Core():
 
                     if a_acceptable_amount and b_acceptable_amount:
 
-                        print("amount_a: "+str(a_acceptable_amount))
-                        print("amount_b: "+str(b_acceptable_amount))
+                        # print("amount_a: "+str(a_acceptable_amount))
+                        # print("amount_b: "+str(b_acceptable_amount))
                         
                         a_sell_result = trade_handler[a_market]('sell', a_max_bid, a_acceptable_amount)
                         if a_sell_result:
@@ -169,9 +185,11 @@ class Core():
 
         if order_size <= 10: return None
 
+        huobi_trade_fee_rate = float(self._redis.get("huobi_trade_fee_rate"))
+
         if operation == 'sell':
             new_currency_amount = float(self._redis.get('huobi_currency_amount')) - amount
-            new_usdt_amount = float(self._redis.get('huobi_usdt_amount')) + amount * price
+            new_usdt_amount = float(self._redis.get('huobi_usdt_amount')) + amount * price * (1 - huobi_trade_fee_rate)
             if advance_mode:
                 if new_currency_amount >= 0 and new_usdt_amount >= 0:
                     return amount
@@ -223,7 +241,6 @@ class Core():
                     if self.huobi.cancel_order(order_id) == "ok":
                         return self.huobi.place_order(amount, 0, self.currency_code+"usdt", "buy-market")
                         
-
     def _binance_trade_handler(self, operation: str, price: float, amount: float, advance_mode=None):
         """[summary]
         
@@ -243,9 +260,11 @@ class Core():
 
         if order_size <= 10: return None
 
+        binance_trade_fee_rate = float(self._redis.get("binance_trade_fee_rate"))
+
         if operation == 'sell':
             new_currency_amount = float(self._redis.get('binance_currency_amount')) - amount
-            new_usdt_amount = float(self._redis.get('binance_usdt_amount')) + amount * price
+            new_usdt_amount = float(self._redis.get('binance_usdt_amount')) + amount * price * (1 - binance_trade_fee_rate)
             if advance_mode:
                 if new_currency_amount >= 0 and new_usdt_amount >= 0:
                     return amount
@@ -416,6 +435,14 @@ class Core():
             elif operation == 'buy':
                 operation_total_price = float(platform['min_ask']) * float(operable_amount)
                 msg = '---> {} {} were purchased in {} with the price {} usdt <---'.format(operable_amount, self.currency[0].upper(), platform['market'], operation_total_price)
+            self.logger.info(msg)
+
+        if render_type == "pre_profit":
+
+            total_profit = data[0]
+            total_trade_fee = data[1]
+            netto_total_profit = data[2]
+            msg = "---> expected total profit / sum trade fee / netto profit: {} / {} / {}".format(total_profit, total_trade_fee, netto_total_profit)
             self.logger.info(msg)
 
         if render_type == 'continue':

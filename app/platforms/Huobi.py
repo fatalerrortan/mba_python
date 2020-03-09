@@ -309,6 +309,17 @@ class Huobi(Platform):
             return self.cancel_order(order_id)
 
     def get_trade_precision(self, currency: str):
+        """[summary]
+        
+        Arguments:
+            currency {str} -- [description]
+        
+        Raises:
+            KeyError: [description]
+        
+        Returns:
+            [type] -- [description]
+        """
         try:
             request_url = self._prepare_request_data("GET", "/v1/common/symbols")
             raw_result = requests.get(request_url).json()
@@ -330,7 +341,47 @@ class Huobi(Platform):
             self.logger.error(traceback.format_exc())
             return self.get_trade_precision(currency)
 
+    def get_trade_fee(self, currency: str):
+        """[summary] API not working 
+        
+        Arguments:
+            currency {str} -- [description]
+        
+        Raises:
+            KeyError: [description]
+        
+        Returns:
+            [type] -- [description]
+        """
+        symbols = currency+"usdt"
+        try:
+            request_url = self._prepare_request_data("GET", "/v2/reference/transact-fee-rate/symbols={}".format(symbols))
+            print(request_url)
+            raw_result = requests.get(request_url).json()
+
+            return raw_result
+
+                # raise KeyError("ERROR: Huobi Api No lot size info of the given currency")
+            # else: 
+            #     self.logger.warning(raw_result["err-msg"])
+            #     time.sleep(0.5)
+            #     return self.get_trade_fee(currency)
+        except Exception as e:
+            self.logger.error("ERROR: cannot get trade fee from retrieved Huobi api result")
+            self.logger.error(getattr(e, 'message', repr(e)))
+            self.logger.error(traceback.format_exc())
+            # return self.get_trade_fee(currency)
+
     def _prepare_request_data(self, post_method: str, uri: str, **params):
+        """[summary]
+        
+        Arguments:
+            post_method {str} -- [description]
+            uri {str} -- [description]
+        
+        Returns:
+            [type] -- [description]
+        """
         request_params_dict = {
             "AccessKeyId": self._api_key,
             "SignatureMethod": "HmacSHA256",

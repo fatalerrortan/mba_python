@@ -40,7 +40,7 @@ logger.addHandler(fh)
 
 config = configparser.ConfigParser()
 
-config.read('/Users/fatalerrortxl/Desktop/tanmba/etc/{}.ini'.format(currency_code))
+config.read('etc/{}.ini'.format(currency_code))
 # config.read('../etc/{}.ini'.format(currency_code))
 
 CURRENCY_PAIR = currency_code + 'usdt'
@@ -85,10 +85,10 @@ if __name__ == '__main__':
         core_coroutine = Core(redis, currency_code, freq_analyser, huobi_coroutine, binance_coroutine) 
 
 
-        result = core_coroutine.lot_size_validate("0.19129999999999999782")
-        print(result)
-        # result = huobi_coroutine.get_trade_precision("eth")
+        # result = core_coroutine.lot_size_validate("0.19129999999999999782")
         # print(result)
+        result = huobi_coroutine.get_trade_fee("eth")
+        print(result)
         # result1 = huobi_coroutine.get_account_balance("eth", "usdt")
         # print(result1)
         # {'eos': {'currency': 'eos', 'type': 'trade', 'balance': '0.1994'}, 'usdt': {'currency': 'usdt', 'type': 'trade', 'balance': '9.72044542'}}

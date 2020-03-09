@@ -122,8 +122,10 @@ if __name__ == '__main__':
         amount_precision_binance = binance_coroutine.get_trade_precision(currency_code)
         amount_precision_huobi = huobi_coroutine.get_trade_precision(currency_code)
         AMOUNT_PRECISION = min(amount_precision_binance, amount_precision_huobi)
-
         redis.set('amount_precision', AMOUNT_PRECISION)
+
+        redis.set("huobi_trade_fee_rate", 0.002)
+        redis.set("binance_trade_fee_rate", 0.001)
 
         redis.set('init_total_curreny_amount', float(HUOBI_CURRENCY_AMOUNT) + float(BINANCE_CURRENCY_AMOUNT))
         redis.set('init_total_usdt_amount', float(HUOBI_USDT_AMOUNT) + float(BINANCE_USDT_AMOUNT))
