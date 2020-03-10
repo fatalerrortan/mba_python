@@ -2,6 +2,7 @@ import csv
 import traceback
 import os
 import logging
+import asyncio
 
 class Freq_Analyser:
     
@@ -37,7 +38,7 @@ class Freq_Analyser:
         else:
             self.freq_dict[margin] += 1 
 
-    def write_to_csv(self, a, b):
+    def write_to_csv_at_exit(self, a, b):
         msg = '---> converting collected data to csv, then the program will be terminated ... <---'
         self.logger.info(msg)
 
@@ -49,6 +50,20 @@ class Freq_Analyser:
                 csv_file.write('{},{}\r\n'.format(margin, freq))
 
         exit(self.logger.info('bye bye 再见 ciao wiedersehen :)'))
+
+    async def write_to_csv_periodically(self):
+        while True:
+            await asyncio.sleep(60)
+            msg = '---> writing analysis records <---'
+            self.logger.info(msg)
+
+            sorted_freq_dict = dict(sorted(self.freq_dict.items()))
+
+            with open(self.csv_file_path, 'w') as csv_file:
+                csv_file.write('{},{}\r\n'.format('margin', 'freq'))
+                for margin, freq in sorted_freq_dict.items():
+                    csv_file.write('{},{}\r\n'.format(margin, freq))
+
         
     def get_freq_result(self):
         pass

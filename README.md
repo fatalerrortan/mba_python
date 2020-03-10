@@ -13,11 +13,13 @@ docker pull fatalerrortxl/tanmba_test:f_real_transaction
 
 an example we ship a container to handle eth
 ```bash
-docker run -it --name eth_container --network host -v host/dir/etc:/opt/app/etc fatalerrortxl/tanmba_test:f_real_transaction eth simulation
+docker run -it --name eth_container --network host -v host/dir/etc:/opt/app/etc fatalerrortxl/tanmba_test:f_real_transaction eth simulation testing.json
 ```
 - /host/dir/etc: use -v argument to declare the location where you put the etc folder of the repo root dir on your machine
+- --network: if running multiple containers for several crypto currencies, using bridge instead of host network
 - eth: crypo currency name you want to handle 
 - simulation: execution mode "simulation" OR "production"  
+- testing.json: the json file that you placed in the log folder to setup your own transaction behaviour. we will explain it later
 
 ## Installation and Usage on Windows 
 
@@ -64,8 +66,6 @@ redis_index = 0
 memcached_url = localhost
 memcached_port = 11211
 
-[RULE]
-rule_file = testing.json
 ```
 - **Key attributes explanation**
 	- access_key: public api key of the active platform
