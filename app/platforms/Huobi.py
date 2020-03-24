@@ -355,7 +355,7 @@ class Huobi(Platform):
         """
         symbols = currency+"usdt"
         try:
-            request_url = self._prepare_request_data("GET", "/v2/reference/transact-fee-rate/symbols={}".format(symbols))
+            request_url = self._prepare_request_data("GET", "/v2/reference/transact-fee-rate?symbols={}".format(symbols))
             print(request_url)
             raw_result = requests.get(request_url).json()
 
