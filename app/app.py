@@ -50,6 +50,7 @@ HUOBI_TOPIC_MARKET_DEPTH = config['HUOBI']['stream'].replace('$currency_pair', C
 HUOBI_API_HOST = config['HUOBI']['api_host']
 HUOBI_API_KEY = config['HUOBI']['access_key']
 HUOBI_SECRET_KEY = config['HUOBI']['secret_key']
+HUOBI_TRADE_FEE_RATE = config['HUOBI']['trade_fee']
 #simulation params
 HUOBI_CURRENCY_AMOUNT = config['HUOBI']['simulated_currency_amount']
 HUOBI_USDT_AMOUNT = config['HUOBI']['simulated_usdt_amount']
@@ -59,6 +60,7 @@ BINANCE_STREAM = config['BINANCE']['stream'].replace('$currency_pair', CURRENCY_
 BINANCE_API_HOST = config['BINANCE']['api_host']
 BINANCE_API_KEY = config['BINANCE']['access_key']
 BINANCE_SECRET_KEY = config['BINANCE']['secret_key']
+BINANCE_TRADE_FEE_RATE = config['BINANCE']['trade_fee']
 #simulation params
 BINANCE_CURRENCY_AMOUNT = config['BINANCE']['simulated_currency_amount']
 BINANCE_USDT_AMOUNT = config['BINANCE']['simulated_usdt_amount']
@@ -124,8 +126,8 @@ if __name__ == '__main__':
         AMOUNT_PRECISION = min(amount_precision_binance, amount_precision_huobi)
         redis.set('amount_precision', AMOUNT_PRECISION)
 
-        redis.set("huobi_trade_fee_rate", 0.002)
-        redis.set("binance_trade_fee_rate", 0.001)
+        redis.set("huobi_trade_fee_rate", HUOBI_TRADE_FEE_RATE)
+        redis.set("binance_trade_fee_rate", BINANCE_TRADE_FEE_RATE)
 
         redis.set('init_total_curreny_amount', float(HUOBI_CURRENCY_AMOUNT) + float(BINANCE_CURRENCY_AMOUNT))
         redis.set('init_total_usdt_amount', float(HUOBI_USDT_AMOUNT) + float(BINANCE_USDT_AMOUNT))
