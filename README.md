@@ -75,7 +75,7 @@ memcached_port = 11211
 	- simulated_currency_amount: fake crypto currency amount for simulation
 	- simulated_usdt_amount: fake usdt amount for simulation
 	- trade_fee: Please check the transaction fee of each platform at first. This interface is a temporary solution. I will try to get it automatically later.
-
+	
 **2. Trade Logic Configuration**
 Just like the "rule_file" I mentioned at the end of the last chapter. You also need to define your own trade logic for each currency you want to handle. You can use and modify my template "app/rules/testing.json" to create you own and more profitable trade logic. 
 ```json
