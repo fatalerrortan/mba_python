@@ -5,13 +5,15 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 echo 'Building..'
-                checkout scm
-                def tag = "tanmba_test:jenkins"
-                def customImage = docker.build("${tag}", ".")
+                script {
+                    checkout scm
+                    def tag = "tanmba_test:jenkins"
+                    def customImage = docker.build("${tag}", ".")
 
-                customImage.inside {
-                    sh 'uname -a'
-                    sh 'ls -al'
+                    customImage.inside {
+                        sh 'uname -a'
+                        sh 'ls -al'
+                    }
                 }
             }
         }
