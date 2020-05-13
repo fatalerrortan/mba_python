@@ -4,11 +4,11 @@ pipeline {
     stages {
         stage('Build Docker Image') {
             steps {
-                echo 'Building..'
+                echo 'Docker-Image von Fabman wird aufgebaut...'
                 script {
                     checkout scm
                     def tag = "tanmba_test:jenkins"
-                    def customImage = docker.build("${tag}", ".")
+                    def customImage = docker.build("${tag}", "-f Dockerfile .")
 
                     customImage.inside {
                         sh 'uname -a'
