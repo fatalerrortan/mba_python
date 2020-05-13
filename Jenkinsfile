@@ -25,6 +25,18 @@ pipeline {
         stage('Deploy Image auf Server iuvo132') {
             steps {
                 echo 'Deploying....'
+                script {
+                    def remote = [:]
+                    remote.name = 'resberry'
+                    remote.host = '192.168.178.51'
+                    remote.user = 'pi'
+                    remote.password = '900804'
+                    remote.allowAnyHosts = true
+                    
+                    sshCommand remote: remote, command: "ls -al"
+                    sshCommand remote: remote, command: "pwd"
+                    sshCommand remote: remote, command: "uname -a"
+                }
             }
         }
     }
