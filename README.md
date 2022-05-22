@@ -140,3 +140,12 @@ margin,freq
 ```
 ## License
 [GNU GPLv3](https://choosealicense.com/licenses/gpl-3.0/#)
+
+## Authors
+
+- [@fatalerrortan](https://github.com/fatalerrortan)
+
+
+## Donation
+
+[![paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=5W6RCYTBVJYZC)
